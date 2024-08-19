@@ -1,0 +1,33 @@
+;;;; -*- Mode: lisp; indent-tabs-mode: nil -*-
+;;;
+;;; package.lisp ---- Package definition for Nitory.
+;;;
+;;; Copyright (C) 2024  NagiNikaido <naginikaido@kuusouhakuchuu.cn>
+;;;
+;;; This program is free software: you can redistribute it and/or modify
+;;; it under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation, either version 3 of the License, or
+;;; (at your option) any later version.
+;;;
+;;; This program is distributed in the hope that it will be useful,
+;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+;;;
+
+(defpackage #:nitory
+  (:use #:common-lisp)
+  (:local-nicknames (:a :alexandria)
+                    (:re :cl-ppcre)
+                    (:json :cl-json))
+  (:export
+   #:main
+   #:nitory/parse-dice-cell
+   #:nitory/parse-dice-term
+   #:nitory/parse-dice-expr
+   #:nitory/parse-dice-full-expr
+   #:nitory/exec-dice-tree
+   #:nitory/roll-dice))
