@@ -30,16 +30,13 @@
                 '((:roll :dice 3 :face 10 :high 1) 6)))
      (ok (equal (nitory:nitory/parse-dice-cell "3d10l2")
                 '((:roll :dice 3 :face 10 :low 2) 6)))
-     (ok (equal (nitory:nitory/parse-dice-cell "")
-                '((:error) 0)))
-     (ok (equal (nitory:nitory/parse-dice-cell "$8")
-                '((:error) 0)))
+     (ok (signals (nitory:nitory/parse-dice-cell "")))
+     (ok (signals (nitory:nitory/parse-dice-cell "$8")))
      (ok (equal (nitory:nitory/parse-dice-cell "8")
                 '((:const 8) 1)))
      (ok (equal (nitory:nitory/parse-dice-cell "(8)")
                 '((:braket (:const 8)) 3)))
-     (ok (equal (nitory:nitory/parse-dice-cell "(8")
-                '((:error) 0)))
+     (ok (signals (nitory:nitory/parse-dice-cell "(8")))
      (ok (equal (nitory:nitory/parse-dice-cell "8)))")
                 '((:const 8) 1)))))
 
@@ -54,7 +51,8 @@
      (ok (equal (nitory:nitory/parse-dice-term "8*3/4*7")
                 '((:* (:/ (:* (:const 8) (:const 3))
                           (:const 4))
-                      (:const 7)) 7)))))
+                      (:const 7)) 7)))
+     (ok (signals (nitory:nitory/parse-dice-term "3d10h1l2")))))
 
 (deftest dice-expr-test
    (testing "If parse-dice-expr gives right output."
@@ -64,8 +62,7 @@
      (ok (equal (nitory:nitory/parse-dice-expr "8+6d20*3")
                 `((:+ (:const 8)
                       ,(car (nitory:nitory/parse-dice-term "6d20*3"))) 8)))
-     (ng (equal (nitory:nitory/parse-dice-expr "3d10h1l2")
-                (nitory:nitory/parse-dice-cell "3d10h1l2")))))
+     (ok (signals (nitory:nitory/parse-dice-expr "3d10h1l2")))))
 
 (deftest function-test
    (format t "~A~%~%" (nitory:nitory/roll-dice "3d10h2*3d20 如何"))
