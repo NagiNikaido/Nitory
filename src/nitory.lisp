@@ -22,6 +22,7 @@
 
 (setq re:*allow-named-registers* t)
 (defvar *onebot-websocket-client* nil)
+(setf *random-state* (make-random-state))
 
 (defun main ()
   (format t "Hello from nitory.~%")
@@ -63,10 +64,10 @@
          (sender (a:ensure-gethash "sender" json nil))
          (ignore nil))
     (format t "~a~%" msg)
-    (if (not ignore)
+    (unless ignore
         (let ((rmsg (nitory/parse-and-respond sender msg)))
           (format t "~a~%" rmsg)
-          (if rmsg
+          (when rmsg
               (a:switch (message-type :test #'equal)
                         ("private" (respond/do-send-private-message user-id rmsg))
                         ("group" (respond/do-send-group-message group-id rmsg))))))))
@@ -74,8 +75,8 @@
 (defun nitory/parse-and-respond (sender message)
   (let ((leading (char message 0))
         (rdmsg (concatenate 'string message " ")))
-    (if (or (char= #\/ leading)
-            (char= #\. leading))
+    (when (or (char= #\/ leading)
+              (char= #\. leading))
         (let* ((pos (position #\space rdmsg))
                (command (subseq rdmsg 1 pos))
                (rest (string-trim " " (subseq rdmsg (+ 1 pos)))))
