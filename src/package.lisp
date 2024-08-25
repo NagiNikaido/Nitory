@@ -24,7 +24,7 @@
                     (:re :cl-ppcre)
                     (:json :cl-json)
                     (:v :org.shirakumo.verbose)
-                    (:as :cl-async)
+                    (:sig :trivial-signal)
                     (:bb :blackbird))
   (:export
    #:main

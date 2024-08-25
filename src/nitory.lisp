@@ -130,15 +130,16 @@
           (format t "Nitory v~a~%Running on ~a~%" +version+ (uiop:implementation-identifier))
           (adopt:exit))
         (tagbody
-           (as:signal-handler as:+sigint+ (lambda (c) (go :cleanup)))
-           (as:signal-handler as:+sigterm+ (lambda (c) (go :cleanup)))
-           (nitory/main opts)
+           (sig:signal-handler-bind
+            ((2 (lambda (c) (go :cleanup)))
+             (15 (lambda (c) (go :cleanup))))
+            (nitory/main opts))
          :cleanup
            (nitory/cleanup)))
     (error (c)
       (adopt:print-error-and-exit c))))
 
-(defun nitory/receive-command (json)
+(defun event/receive-command (json)
   (let ((message (gethash "message" json)))
   (when (and (= 1 (length message))
              (string= "text" (gethash "type" (first message))))

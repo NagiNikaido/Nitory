@@ -34,7 +34,7 @@
                "cl-ppcre"
                "verbose"
                "adopt"
-               "cl-async"
+               "trivial-signal"
                "blackbird"
                "bordeaux-threads")
   :components

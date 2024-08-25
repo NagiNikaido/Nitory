@@ -30,7 +30,7 @@
 	(read *nicknames*))
     (error (c)
       (v:warn :nick "~a" c)))
-  (on :meta-event.heartbeat *napcat-websocket-client* nick/save-nicks))
+  (on :meta-event.heartbeat *napcat-websocket-client* #'nick/save-nicks))
 
 (defun nick/save-nicks ()
   (with-open-file (s "nicknames"
@@ -55,8 +55,8 @@
 	 (user-id (gethash "user_id" json))
 	 (sender (gethash "sender" json))
 	 (default-nick (gethash "nickname" sender))
-	 (current-nick (second rest))
-	 (msg (let ((arg-len (length rest)))
+	 (current-nick (second args))
+	 (msg (let ((arg-len (length args)))
 		(cond
 		  ((= 1 arg-len) (progn
 				   (nick/rm-nick user-id)
