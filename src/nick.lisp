@@ -30,7 +30,7 @@
 	(read *nicknames*))
     (error (c)
       (v:warn :nick "~a" c)))
-  (on :meta-event.heartbeat *napcat-websocket-client* #'nick/save-nicks))
+  (on :meta-event.heartbeat *napcat-websocket-client* ((lambda (json)) (nick/save-nicks))))
 
 (defun nick/save-nicks ()
   (with-open-file (s "nicknames"
