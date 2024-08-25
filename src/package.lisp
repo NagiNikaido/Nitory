@@ -24,7 +24,8 @@
                     (:re :cl-ppcre)
                     (:json :cl-json)
                     (:v :org.shirakumo.verbose)
-                    (:sig :trivial-signal))
+                    (:as :cl-async)
+                    (:bb :blackbird))
   (:export
    #:main
    #:dice/parse-dice-cell

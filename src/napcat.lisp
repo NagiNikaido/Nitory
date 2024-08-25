@@ -173,38 +173,43 @@
     (setf (total-packets napcat-instance) serial)
     (format nil ":x~8,'0x" serial)))
 
-(defmethod send-data ((napcat-instance napcat) action params &optional callback)
+(defmethod send-data ((napcat-instance napcat) action params)
   (let* ((serial (gen-packet-id napcat-instance))
          (data (json:encode-json-alist-to-string `((:action . ,action)
                                                    (:params . ,params)
                                                    (:echo . ,serial)))))
-    (when callback
-      (on (to-sym serial) napcat-instance callback))
-    (cond
-      ((dry-run napcat-instance) data)
-      ((not (client napcat-instance))
-       (receive-data napcat-instance
-                     (json:encode-json-alist-to-string `((:status . "failed")
-                                                         (:retcode . -1)
-                                                         (:data . nil)
-                                                         (:message . "Invalid websocket client - maybe not initialized or early disposed?")
-                                                         (:echo . ,serial)))))
-      ((not (eq :open (wsd:ready-state (client napcat-instance))))
-       (receive-data napcat-instance
-                     (json:encode-json-alist-to-string `((:status . "failed")
-                                                         (:retcode . -1)
-                                                         (:data . nil)
-                                                         (:message . "Invalid websocket connection.")
-                                                         (:echo . ,serial)))))
-      (t (wsd:send-text (client napcat-instance) data)))))
+    (bb:with-promise (resolve reject)
+      (once (to-sym serial) napcat-instance
+            (lambda (json)
+              (let ((data (gethash "data" json)))
+                (if (= 0 (gethash "retcode" json))
+                    (resolve data)
+                    (reject json)))))
+      (cond
+        ((dry-run napcat-instance) data)
+        ((not (client napcat-instance))
+         (receive-data napcat-instance
+                       (json:encode-json-alist-to-string `((:status . "failed")
+                                                           (:retcode . -1)
+                                                           (:data . nil)
+                                                           (:message . "Invalid websocket client - maybe not initialized or early disposed?")
+                                                           (:echo . ,serial)))))
+        ((not (eq :open (wsd:ready-state (client napcat-instance))))
+         (receive-data napcat-instance
+                       (json:encode-json-alist-to-string `((:status . "failed")
+                                                           (:retcode . -1)
+                                                           (:data . nil)
+                                                           (:message . "Invalid websocket connection.")
+                                                           (:echo . ,serial)))))
+        (t (wsd:send-text (client napcat-instance) data))))))
 
 (macrolet ((%apis (&rest api-list)
              (flet ((%append-api (api param-model)
                       (let ((sym (to-sym (concat "do-" api))))
                         `(progn
-                           (defmethod ,sym ((napcat-instance napcat) params &optional callback)
+                           (defmethod ,sym ((napcat-instance napcat) params)
                              (assert (alist-p params ,param-model))
-                             (send-data napcat-instance ,api params (or callback (values))))
+                             (send-data napcat-instance ,api params))
                            (export ',sym)))))
                `(block apis ,@(loop for (api param-model) on api-list by #'cddr
                         collect (%append-api api param-model))))))

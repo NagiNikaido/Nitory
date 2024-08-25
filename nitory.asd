@@ -33,8 +33,10 @@
                "yason"
                "cl-ppcre"
                "verbose"
-               "trivial-signal"
-               "adopt")
+               "adopt"
+               "cl-async"
+               "blackbird"
+               "bordeaux-threads")
   :components
   ((:static-file "LICENSE")
    (:static-file "VERSION")
@@ -45,7 +47,7 @@
      (:file "utils")
      (:file "napcat-types")
      (:file "napcat")
-     (:file "module")
+     (:file "nick")
      (:file "dice")
      (:file "nitory"))))
   :build-operation "program-op"
@@ -58,7 +60,10 @@
                "nitory"
                "rove"
                "cl-json"
-               "cl-ppcre")
+               "cl-ppcre"
+               "blackbird"
+               "bordeaux-threads"
+               "verbose")
   :components
   ((:module "test"
     :serial t

@@ -56,29 +56,27 @@
 
 (deftest do-sends
   (let ((message #(((:type . "text")
-                        (:data . ((:text . "nihao")))))))
+                    (:data . ((:text . "nihao")))))))
     (ok (typep message 'nitory:message))
     (let* ((sent (nitory:do-send-group-msg *test-client*
                    `((:group-id . 123456)
                      (:message . ,message))
-                   (lambda (json)
-                     (format t "status=~a&retcode=~a&message_id=~a&echo=~a"
-                             (gethash "status" json)
-                             (gethash "retcode" json)
-                             (gethash "message_id" (gethash "data" json))
-                             (gethash "echo" json)))))
-           (serial (nitory:cur-packet-id *test-client*))
-           (ideal (json:encode-json-alist-to-string
-                     `((:action . "send_group_msg")
-                       (:params . ((:group-id . 123456)
-                                   (:message . ,message)))
-                       (:echo . ,serial)))))
-      (ok (equal sent ideal))
+                   ))
+           (serial (nitory:cur-packet-id *test-client*)))
+      (v:info :out "~a" sent)
+      (nitory:receive-data *test-client*
+                           (json:encode-json-alist-to-string
+                            `((:status . "ok")
+                              (:retcode . 0)
+                              (:data . ((:message-id . 123)))
+                              (:echo . ,serial))))
       (ok (outputs
-           (nitory:receive-data *test-client*
-                                (json:encode-json-alist-to-string
-                                 `((:status . "ok")
-                                   (:retcode . 0)
-                                   (:data . ((:message-id . 123)))
-                                   (:echo . ,serial))))
-           (format nil "status=ok&retcode=0&message_id=123&echo=~a" serial))))))
+              (bb:catcher
+               (bb:attach
+                sent
+                (lambda (json)
+                  (v:info :promise "~a" json)
+                  (format t "message_id=~a" (gethash "message_id" json))))
+               (t (json)
+                  (v:info :promise "~a" json)))        
+           (format nil "message_id=123"))))))

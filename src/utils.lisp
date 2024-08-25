@@ -31,6 +31,8 @@
 
 (defvar *napcat-websocket-client* nil)
 (defvar *startup-timestamp* nil)
+(defvar *admin* nil)
+
 
 (defun join (str list)
   (declare (inline join))

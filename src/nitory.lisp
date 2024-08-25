@@ -104,16 +104,21 @@
   (v:start v:*global-controller*)
   (v:info :main "Hello from Nitory v~a, a multiple-purposed chatbot based on OneBot v11 & NapCat." +version+)
   (v:info :main "Running on ~a" (uiop:implementation-identifier))
+  (let ((admin (uiop:getenv "NITORY_ADMIN")))
+    (when admin
+      (setq *admin* (parse-integer admin))))
   (setf *napcat-websocket-client* (make-napcat :url (gethash 'url opts)
                                                :address (gethash 'url opts)
                                                :port (gethash 'url opts)))
-  (on :message *napcat-websocket-client* #'event/receive-message)
+  (on :message *napcat-websocket-client* #'event/receive-command)
   (on :request *napcat-websocket-client* #'event/receive-request)
+  (nick/enable-nick)
   (connect *napcat-websocket-client*)
   (loop (sleep 100)))
 
 (defun nitory/cleanup ()
   (v:info :main "Exiting.")
+  (nick/save-nicks)
   (v:stop v:*global-controller*))
 
 (defun main ()
@@ -125,61 +130,67 @@
           (format t "Nitory v~a~%Running on ~a~%" +version+ (uiop:implementation-identifier))
           (adopt:exit))
         (tagbody
-           (sig:signal-handler-bind
-               ((2 (lambda (c) (go :cleanup)))
-                (15 (lambda (c) (go :cleanup))))
-             (nitory/main opts))
+           (as:signal-handler as:+sigint+ (lambda (c) (go :cleanup)))
+           (as:signal-handler as:+sigterm+ (lambda (c) (go :cleanup)))
+           (nitory/main opts)
          :cleanup
            (nitory/cleanup)))
     (error (c)
       (adopt:print-error-and-exit c))))
 
-(defun event/receive-message (json)
-  (let* ((message-type (a:ensure-gethash "message_type" json nil))
-         (sub-type (a:ensure-gethash "sub_type" json nil))
-         (user-id (a:ensure-gethash "user_id" json nil))
-         (group-id (a:ensure-gethash "group_id" json nil))
-         (msg (a:ensure-gethash "raw_message" json nil))
-         (sender (a:ensure-gethash "sender" json nil))
-         (ignore nil))
-    (format t "~a~%" msg)
-    (unless ignore
-      (let ((rmsg (nitory/parse-and-respond sender msg)))
-        (format t "~a~%" rmsg)
-        (when rmsg
-          (a:switch (message-type :test #'equal)
-            ("private" (do-send-private-msg *napcat-websocket-client*
-                         `((:user-id . ,user-id)
-                           (:message . #(((:type . "text")
-                                          (:data . ((:text . ,rmsg)))))))))
-            ("group" (do-send-group-msg *napcat-websocket-client*
-                       `((:group-id . ,group-id)
-                         (:message . #(((:type . "text")
-                                        (:data . ((:text . ,rmsg)))))))))))))))
-
-(defun nitory/parse-and-respond (sender message)
-  (let ((leading (char message 0))
-        (rdmsg (concatenate 'string message " ")))
-    (when (or (char= #\/ leading)
-              (char= #\. leading))
-      (let* ((pos (position #\space rdmsg))
-             (command (subseq rdmsg 1 pos))
-             (rest (string-trim " " (subseq rdmsg (+ 1 pos)))))
-        (a:switch (command :test #'equal)
-          ("help" (nitory/print-help rest))
-          ("r" (dice/roll-dice rest sender))
-          (otherwise (nitory/command-not-supported)))))))
+(defun nitory/receive-command (json)
+  (let ((message (gethash "message" json)))
+  (when (and (= 1 (length message))
+             (string= "text" (gethash "type" (first message))))
+    (let* ((raw-msg (gethash "text" (gethash "data" (first message))))
+           (leading (char raw-msg 0)))
+      (when (or (char= #\/ leading)
+                (char= #\. leading)) ; it is a command
+        (let* ((args (re:split "\\s+" (subseq raw-msg 1)))
+               (cmd (car args)))
+          (cond
+            ((string= "help" cmd) (nitory/cmd-help json args))
+            ((re:scan "rh?([+-]\\d+|\\d+)?" cmd) (dice/cmd-roll json args))
+            ((string= "nn" cmd) (nick/cmd-set-nick json args))
+            ;;((string= "khst" cmd) (khst/cmd-khst json rest))
+            (t (nitory/cmd-not-supported json args)))))))))
 
 (defun nitory/print-help (rest)
-  "Project-Nitory v0.0.1 by NagiNikaido
+  (format nil
+"Project-Nitory v~a by NagiNikaido
+启动于 ~a
 指令列表:
 .r: 掷骰指令（默认d20）
+.nn: 设置昵称
+.khst: 看话说图
 .help: 显示本帮助
-更多功能开发中")
+更多功能开发中" +version+ (cur-decoded-timestamp)))
 
+(defun nitory/cmd-help (json args)
+  (let* ((msg-type (gethash "message_type" json))
+	 (group-id (gethash "group_id" json))
+	 (user-id (gethash "user_id" json))
+	 (msg (nitory/print-help args)))
+    (do-send-msg *napcat-websocket-client*
+      (list (a:switch (msg-type :test #'equal)
+	      ("group" `(:group-id . ,group-id))
+	      ("private" `(:user-id . ,user-id)))
+	    `(:message-type . ,msg-type)
+	    `(:message . #(((:type . "text")
+			    (:data . ((:text . ,msg))))))))))
 
-(defun nitory/command-not-supported ()
-  "无效指令")
+(defun nitory/cmd-not-supported (json args)
+  (let* ((msg-type (gethash "message_type" json))
+	 (group-id (gethash "group_id" json))
+	 (user-id (gethash "user_id" json))
+	 (msg "无效指令"))
+    (do-send-msg *napcat-websocket-client*
+      (list (a:switch (msg-type :test #'equal)
+	      ("group" `(:group-id . ,group-id))
+	      ("private" `(:user-id . ,user-id)))
+	    `(:message-type . ,msg-type)
+	    `(:message . #(((:type . "text")
+			    (:data . ((:text . ,msg))))))))))
 
 (defun event/receive-notice (notice)
   ())
@@ -201,7 +212,7 @@
               ("invite" (respond/do-group-invite-request group-id user-id comment flag)))))))
 
 (defun respond/do-friend-request (user-id comment flag)
-  (let ((approve nil))
+  (let ((approve t))
     (do-set-friend-add-request *napcat-websocket-client*
       `((:flag . ,flag)
         (:approve . ,approve)))))
@@ -210,7 +221,7 @@
   ())
 
 (defun respond/do-group-invite-request (group-id user-id comment flag)
-  (let ((approve (= user-id 1203794101)))
+  (let ((approve (and *admin* (= user-id *admin*))))
     (do-set-group-add-request *napcat-websocket-client*
       `((:flag . ,flag)
         (:type . "invite")

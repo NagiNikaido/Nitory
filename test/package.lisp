@@ -23,7 +23,9 @@
         #:rove)
   (:local-nicknames (:a :alexandria)
 		    (:re :cl-ppcre)
-                    (:json :cl-json))
+                    (:json :cl-json)
+                    (:bb :blackbird)
+                    (:v :org.shirakumo.verbose))
   (:import-from #:nitory)
   (:export
    #:run-all-tests))

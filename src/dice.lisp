@@ -222,10 +222,38 @@
                    (error () nil))))
         (if res
             (join '(#\newline)
-                  `(,(concat (if sender (a:ensure-gethash "nickname" sender "") "") " 掷骰 " (caar res)
+                  `(,(concat (if sender
+                                 (or (nick/get-nick (gethash "user_id" sender))
+                                     (a:ensure-gethash "nickname" sender ""))
+                                 "") " 掷骰 " (caar res)
                              (if (string/= comment "") (concat " (" comment ")")) ":")
                     ,@(loop for a in (cadr res)
                             collect (join "=" `(,(cadar res)
                                                 ,(car a)
                                                 ,(write-to-string (cadr a)))))))
             "掷骰失败")))))
+
+(defun dice/cmd-roll (json args)
+  (multiple-value-bind (match arguments)
+      (re:scan-to-strings "r(h)?((\\d+)|([+-]\\d+))?" (first args))
+    (let* ((msg-type (if (elt arguments 0)
+                         "private"
+                         (gethash "message_type" json)))
+           (sender (gethash "sender" json))
+           (group-id (gethash "group_id" json))
+           (user-id (gethash "user_id" json))
+           (rest (join " "
+                       (if (elt arguments 1)
+                           (cons (format nil "~ad~a"
+                                         (or (elt arguments 2) "")
+                                         (or (elt arguments 3) ""))
+                             (cdr args))
+                           (cdr args))))
+           (msg (dice/roll-dice rest sender)))
+      (do-send-msg *napcat-websocket-client*
+        (list (a:switch (msg-type :test #'equal)
+	      ("group" `(:group-id . ,group-id))
+	      ("private" `(:user-id . ,user-id)))
+	    `(:message-type . ,msg-type)
+	    `(:message . #(((:type . "text")
+			    (:data . ((:text . ,msg)))))))))))
