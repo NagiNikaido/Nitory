@@ -27,7 +27,7 @@
       (with-open-file (s "nicknames"
 			 :direction :input
 			 :if-does-not-exist :error)
-	(read *nicknames*))
+	(read s *nicknames*))
     (error (c)
       (v:warn :nick "~a" c)))
   (on :meta-event.heartbeat *napcat-websocket-client* (lambda (json) (nick/save-nicks))))
@@ -36,7 +36,7 @@
   (with-open-file (s "nicknames"
 		     :direction :output
 		     :if-exists :supersede)
-    (v:info :nick "Saveing nicknames...")
+    (v:info :nick "Saving nicknames...")
     (unwind-protect (print *nicknames* s))
     (v:info :nick "Done.")))
 
