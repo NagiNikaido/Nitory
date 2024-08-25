@@ -46,7 +46,7 @@
      (:file "napcat-types")
      (:file "napcat")
      (:file "module")
-     (:file "helper")
+     (:file "dice")
      (:file "nitory"))))
   :build-operation "program-op"
   :build-pathname "build/nitory"
