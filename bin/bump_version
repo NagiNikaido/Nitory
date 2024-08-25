@@ -25,7 +25,7 @@ our $file = $asdf_dir . "VERSION";
 our @transform_ref =
   (
    [ "VERSION", "\"", "\"" ],
-   [ "src/utils.lisp", "(defconstant +version+ \"", "\")" ], );
+   [ "src/utils.lisp", "(defparameter +version+ \"", "\")" ], );
 
 if ($#ARGV == 1) {
   $old = $ARGV[0];
