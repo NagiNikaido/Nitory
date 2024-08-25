@@ -40,7 +40,9 @@
 (defun make-napcat (&key url address port dry-run)
   (v:info :napcat "Making NapCat.")
   (make-instance 'napcat :url (or url
-                                  (format nil "ws://~a:~d" address port))
+                                  (format nil "ws://~a:~d"
+                                          (or address "localhost")
+                                          (or port 3001)))
                  :dry-run dry-run))
 
 (defmethod initialize-instance :after ((napcat-instance napcat) &key url)
