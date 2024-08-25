@@ -36,7 +36,9 @@
 
 (defun join (str list)
   (declare (inline join))
-  (reduce (lambda (x y) (concat x str y)) list))
+  (if list
+      (reduce (lambda (x y) (concat x str y)) list)
+      ""))
 
 (defun concat (&rest strings)
   (declare (inline concat))

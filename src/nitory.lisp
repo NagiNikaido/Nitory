@@ -151,7 +151,7 @@
                (cmd (car args)))
           (cond
             ((string= "help" cmd) (nitory/cmd-help json args))
-            ((re:scan "rh?([+-]\\d+|\\d+)?" cmd) (dice/cmd-roll json args))
+            ((re:scan "^rh?([+-]\\d+|\\d+)?$" cmd) (dice/cmd-roll json args))
             ((string= "nn" cmd) (nick/cmd-set-nick json args))
             ;;((string= "khst" cmd) (khst/cmd-khst json rest))
             (t (nitory/cmd-not-supported json args)))))))))
