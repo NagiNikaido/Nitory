@@ -22,12 +22,82 @@
   (:use #:common-lisp)
   (:local-nicknames (:a :alexandria)
                     (:re :cl-ppcre)
-                    (:json :cl-json))
+                    (:json :cl-json)
+                    (:v :org.shirakumo.verbose)
+                    (:sig :trivial-signal))
   (:export
    #:main
-   #:nitory/parse-dice-cell
-   #:nitory/parse-dice-term
-   #:nitory/parse-dice-expr
-   #:nitory/parse-dice-full-expr
-   #:nitory/exec-dice-tree
-   #:nitory/roll-dice))
+   #:dice/parse-dice-cell
+   #:dice/parse-dice-term
+   #:dice/parse-dice-expr
+   #:dice/parse-dice-full-expr
+   #:dice/exec-dice-tree
+   #:dice/roll-dice
+   ;; from napcatp-types
+   #:alist-p
+   #:segment-p
+   #:message-p
+   #:message
+   ;; from napcat
+   #:napcat
+   #:make-napcat
+   #:url
+   #:dry-run
+   #:connect
+   #:on
+   #:once
+   #:emit
+   #:remove-listener
+   #:remove-all-listeners
+   #:listeners
+   #:listener-count
+   #:cur-packet-id
+   #:receive-data
+   #:receive-message
+   #:receive-notice
+   #:receive-request
+   #:receive-meta-event
+   #:receive-response
+   #:send-data
+   #:do-get-friends-with-category
+   #:do-set-group-card
+   #:do-can-send-record
+   #:do-debug
+   #:do-set-group-leave
+   #:do-get-friend-list
+   #:do-set-group-admin
+   #:do-get-group-list
+   #:do-forward-friend-single-msg
+   #:do-set-friend-add-request
+   #:do-set-msg-emoji-like
+   #:do-get-group-file-list
+   #:do-get-rebot-uin-range
+   #:do-get-group-member-list
+   #:do-get-group-member-info
+   #:do-delete-msg
+   #:do-get-status
+   #:do-get-login-info
+   #:do-get-group-info
+   #:do-get-group-file-count
+   #:do-clean-cache
+   #:do-set-group-add-request
+   #:do-set-group-kick
+   #:do-can-send-image
+   #:do-del-group-file-folder
+   #:do-get-version-info
+   #:do-send-group-msg
+   #:do-set-group-whole-ban
+   #:do-del-group-file
+   #:do-set-group-file-folder
+   #:do-get-record
+   #:do-get-image
+   #:do-set-group-ban
+   #:do-send-private-msg
+   #:do-get-cookies
+   #:do-get-file
+   #:do-set-qq-avatar
+   #:do-send-msg
+   #:do-forward-group-single-msg
+   #:do-get-msg
+   #:do-set-group-name
+   #:do-reboot-normal))

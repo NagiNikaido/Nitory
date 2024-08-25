@@ -1,6 +1,6 @@
 ;;;; -*- Mode: lisp; indent-tabs-mode: nil -*-
 ;;;
-;;; package.lisp ---- Package definition for Nitory-test.
+;;; helper.lisp ---- brief
 ;;;
 ;;; Copyright (C) 2024  NagiNikaido <naginikaido@kuusouhakuchuu.cn>
 ;;;
@@ -18,13 +18,4 @@
 ;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ;;;
 
-(defpackage #:nitory/test
-  (:use #:common-lisp
-        #:rove)
-  (:local-nicknames (:a :alexandria)
-		    (:re :cl-ppcre)
-                    (:json :cl-json))
-  (:import-from #:nitory)
-  (:export
-   #:run-all-tests))
-
+(in-package #:nitory)

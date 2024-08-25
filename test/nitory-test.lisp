@@ -69,5 +69,6 @@
    (format t "~A~%~%" (nitory:nitory/roll-dice "10#10d20h3 怎样"))
    (format t "~A~%~%" (nitory:nitory/roll-dice "38) 什么"))
    (format t "~A~%~%" (nitory:nitory/roll-dice "")))
+
 (defun run-all-tests ()
   (run :nitory/test))

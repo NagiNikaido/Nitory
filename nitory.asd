@@ -18,21 +18,35 @@
 ;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ;;;
 
+(in-package #:cl-user)
+(push :verbose-no-init *features*)
+
 (asdf:defsystem "nitory"
-  :description "Nitory: "
-  :version "0.0.1"
+  :description "Nitory: A multipurposed chatbot based on OneBot & NapCat."
+  :version (:read-file-form "VERSION")
   :author "NagiNikaido <naginikaido@kuusouhakuchuu.cn>"
   :license "GPL-v3.0-or-later"
   :depends-on ("alexandria"
+               "event-emitter"
 	       "websocket-driver"
 	       "cl-json"
                "yason"
-               "cl-ppcre")
+               "cl-ppcre"
+               "verbose"
+               "trivial-signal"
+               "adopt")
   :components
-  ((:module "src"
+  ((:static-file "LICENSE")
+   (:static-file "VERSION")
+   (:module "src"
     :serial t
     :components
     ((:file "package")
+     (:file "utils")
+     (:file "napcat-types")
+     (:file "napcat")
+     (:file "module")
+     (:file "helper")
      (:file "nitory"))))
   :build-operation "program-op"
   :build-pathname "build/nitory"
@@ -50,6 +64,7 @@
     :serial t
     :components
     ((:file "package")
+     (:file "napcat-test")
      (:file "nitory-test"))))
   :perform (asdf:test-op (o c)
                          (uiop:symbol-call :nitory/test
