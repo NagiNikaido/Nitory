@@ -5,12 +5,14 @@ LISP = sbcl
 .PHONY: build clean test bump bump-version
 
 build:
-	$(LISP) --load "nitory.asd" \
+	$(LISP) --disable-debugger \
+		--load "nitory.asd" \
 	        --eval '(ql:quickload "nitory")' \
 	        --eval '(asdf:make "nitory")'
 
 test:
-	$(LISP) --load "nitory.asd" \
+	$(LISP) --disable-debugger \
+		--load "nitory.asd" \
 	        --eval '(ql:quickload "nitory")' \
 	        --eval '(uiop:quit (if (asdf:test-system "nitory") 0 1))'
 
