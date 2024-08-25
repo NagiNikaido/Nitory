@@ -38,7 +38,6 @@
     :accessor dry-run)))
 
 (defun make-napcat (&key url address port dry-run)
-  (assert (or url (and address port) dry-run))
   (v:info :napcat "Making NapCat.")
   (make-instance 'napcat :url (or url
                                   (format nil "ws://~a:~d" address port))
@@ -48,6 +47,7 @@
   (setf (client napcat-instance) (wsd:make-client url)))
 
 (defmethod connect ((napcat-instance napcat))
+  (v:info :napcat "Connect websocket at ~a" (url napcat-instance))
   (let ((client (client napcat-instance)))
     (emit ":socket.connecting" napcat-instance)
     (wsd:on :open client
@@ -97,7 +97,7 @@
   (event-emitter:listener-count napcat-instance (to-sym event)))
 
 (defmethod receive-data ((napcat-instance napcat) data)
-  (v:info :napcat "received data: ~A~%" data)
+  (v:info :napcat "received data: ~A" data)
   (let* ((json (yason:parse data))
          (event-type (gethash "post_type" json)))
     (a:switch (event-type :test #'equal)
@@ -155,7 +155,7 @@
                        ("disable" (emit ":meta_event.disable" napcat-instance json))
                        ("connect" (emit ":meta_event.connect" napcat-instance json))
                        (otherwise (v:error :napcat "Unsupported meta_event.lifecircle type.")))))
-      (otherwise (v:error :napcat "Unsupported lifecircle type.")))))
+      (otherwise (v:error :napcat "Unsupported meta_event type: ~a." meta-event-type)))))
 
 (defmethod receive-response ((napcat-instance napcat) json)
   (let ((echo (gethash "echo" json)))
