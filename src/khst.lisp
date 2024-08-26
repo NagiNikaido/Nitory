@@ -95,7 +95,7 @@
                                    `((:group-id . ,group-id)
                                      (:message . #(((:type . "text")
                                                     (:data . ((:text . "* 并非图片"))))))))
-                                 (let ((file (gethash "file" (gethash "data" (first nmsg)))))
+                                 (let ((file (gethash "file_id" (gethash "data" (first nmsg)))))
                                    (bb:chain
                                     (do-get-image *napcat-websocket-client*
                                       `((:file . ,file)))
@@ -112,7 +112,7 @@
                                 (format nil "* 已收录~a~d" keyword
                                         (length (getf *khst-lists* keyword)))
                                 "* 已超时，取消收录")))
-                   (do-semd-group-msg *napcat-websocket-client*
+                   (do-send-group-msg *napcat-websocket-client*
                      `((:group-id . ,group-id)
                        (:message . #(((:type . "text")
                                       (:data . ((:text . ,msg)))))))))
