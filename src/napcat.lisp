@@ -85,7 +85,7 @@
         cemit)))
 
 (defmethod remove-listener ((napcat-instance napcat) event listener &key (start 0))
-  (event-emitter:remove-listener (to-sym event) napcat-instance listener
+  (event-emitter:remove-listener napcat-instance (to-sym event) listener
                                  :start start))
 
 (defmethod remove-all-listeners ((napcat-instance napcat) &optional event)
