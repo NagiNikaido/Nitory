@@ -68,7 +68,7 @@
   (let* ((filename (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
     (unless (gethash keyword *khst-lists*)
       (setf (gethash keyword *khst-lists*) nil))
-    (push (gethash keyword *khst-lists*) (namestring filename))
+    (push (namestring filename) (gethash keyword *khst-lists*))
     (ensure-directories-exist filename)
     (uiop:copy-file picture filename)))
 
@@ -88,8 +88,7 @@
                          (let ((ngroup-id (gethash "group_id" njson))
                                (nuser-id (gethash "user_id" njson))
                                (nmsg (gethash "message" njson)))
-                           (when (and (= ngroup-id group-id)
-                                      (= nuser-id user-id))
+                           (when (and (= ngroup-id group-id) (= nuser-id user-id))
                              (if (or (/= 1 (length message))
                                      (string/= "image" (gethash "type" (first nmsg))))
                                  (do-send-group-msg *napcat-websocket-client*
@@ -105,16 +104,25 @@
                                                (khst/save-and-add-to-list keyword downloaded)))
                                     (:finally (c)
                                               (bt2:signal-semaphore sema))))))))))
-                       
-              (on :message.group *napcat-websocket-client* cb)
-              (setf msg (if (bt2:wait-on-semaphore sema :timeout 30)
-                            (format nil "* 已收录~a~d" keyword (length (getf *khst-lists* keyword)))
-                            "* 已超时，取消收录"))
-              (remove-listener *napcat-websocket-client* :message.group cb))))
-    (do-send-msg *napcat-websocket-client*
-      (list (a:switch (msg-type :test #'equal)
-              ("group" `(:group-id . ,group-id))
-              ("private" `(:user-id . ,user-id)))
-            `(:message-type . ,msg-type)
-            `(:message . #(((:type . "text")
-                            (:data . ((:text . ,msg))))))))))
+              (bt2:make-thread
+               (lambda ()
+                 (v:debug :khst "in thread ~a" (bt2:current-thread))
+                 (on :message.group *napcat-websocket-client* cb)
+                 (let ((msg (if (bt2:wait-on-semaphore sema :timeout 30)
+                                (format nil "* 已收录~a~d" keyword
+                                        (length (getf *khst-lists* keyword)))
+                                "* 已超时，取消收录")))
+                   (do-semd-group-msg *napcat-websocket-client*
+                     `((:group-id . ,group-id)
+                       (:message . #(((:type . "text")
+                                      (:data . ((:text . ,msg)))))))))
+                 (remove-listener *napcat-websocket-client* :message.group cb)))
+              :name "khst timeout daemon")))
+        (when msg
+          (do-send-msg *napcat-websocket-client*
+            (list (a:switch (msg-type :test #'equal)
+                    ("group" `(:group-id . ,group-id))
+                    ("private" `(:user-id . ,user-id)))
+                  `(:message-type . ,msg-type)
+                  `(:message . #(((:type . "text")
+                                  (:data . ((:text . ,msg)))))))))))
