@@ -107,7 +107,7 @@
                                               (bt2:signal-semaphore sema))))))))))
                        
               (on :message.group *napcat-websocket-client* cb)
-              (setf msg (if (bt2:wait-on-semaphore sema :timeout 10)
+              (setf msg (if (bt2:wait-on-semaphore sema :timeout 30)
                             (format nil "* 已收录~a~d" keyword (length (getf *khst-lists* keyword)))
                             "* 已超时，取消收录"))
               (remove-listener *napcat-websocket-client* :message.group cb))))
