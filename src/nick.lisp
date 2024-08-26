@@ -20,34 +20,37 @@
 
 (in-package #:nitory)
 
-(defvar *nicknames* nil)
+(defvar *nicknames* (make-hash-table))
+(defvar *nick-path* nil)
 
 (defun nick/enable-nick ()
+  (setf *nick-path* (merge-pathnames *prefix* "nicknames"))
+  (ensure-directories-exist *nick-path*)
   (handler-case
-      (with-open-file (s "nicknames"
+      (with-open-file (s *nick-path*
 			 :direction :input
 			 :if-does-not-exist :error)
-	(read s *nicknames*))
+	(setf *nicknames* (a:plist-hash-table (read s) :test #'equal)))
     (error (c)
       (v:warn :nick "~a" c)))
   (on :meta-event.heartbeat *napcat-websocket-client* (lambda (json) (nick/save-nicks))))
 
 (defun nick/save-nicks ()
-  (with-open-file (s "nicknames"
+  (with-open-file (s *nick-path*
 		     :direction :output
 		     :if-exists :supersede)
     (v:info :nick "Saving nicknames...")
-    (unwind-protect (print *nicknames* s))
+    (unwind-protect (print (a:hash-table-plist *nicknames*) s))
     (v:info :nick "Done.")))
 
 (defun nick/get-nick (user-id)
-  (getf *nicknames* user-id))
+  (gethash user-id *nicknames*))
 
 (defun nick/set-nick (user-id nick)
-  (setf (getf *nicknames* user-id) nick))
+  (setf (gethash user-id *nicknames*) nick))
 
 (defun nick/rm-nick (user-id)
-  (remf *nicknames* user-id))
+  (remhash user-id *nicknames*))
 
 (defun nick/cmd-set-nick (json args)
   (let* ((msg-type (gethash "message_type" json))

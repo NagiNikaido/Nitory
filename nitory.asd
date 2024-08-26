@@ -49,6 +49,7 @@
      (:file "napcat")
      (:file "nick")
      (:file "dice")
+     (:file "khst")
      (:file "nitory"))))
   :build-operation "program-op"
   :build-pathname "build/nitory"

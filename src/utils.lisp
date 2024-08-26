@@ -26,13 +26,13 @@
                                               (string-downcase
                                                (substitute #\_ #\- sym))))
 (setf *random-state* (make-random-state))
-(setq re:*allow-named-registers* t)
-(setq v:*process-locally* t)
+(setf re:*allow-named-registers* t)
+(setf v:*process-locally* t)
 
 (defvar *napcat-websocket-client* nil)
 (defvar *startup-timestamp* nil)
 (defvar *admin* nil)
-
+(defvar *prefix* "/opt/nitory/")
 
 (defun join (str list)
   (declare (inline join))

@@ -99,14 +99,17 @@
                    *option-port*)))
 
 (defun nitory/main (opts)
-  (setq *startup-timestamp* (cur-decoded-timestamp))
+  (setf *startup-timestamp* (cur-decoded-timestamp))
   (setf (v:repl-level) (or (gethash 'loglevel opts) :info))
   (v:start v:*global-controller*)
   (v:info :main "Hello from Nitory v~a, a multiple-purposed chatbot based on OneBot v11 & NapCat." +version+)
   (v:info :main "Running on ~a" (uiop:implementation-identifier))
   (let ((admin (uiop:getenv "NITORY_ADMIN")))
     (when admin
-      (setq *admin* (parse-integer admin))))
+      (setf *admin* (parse-integer admin))))
+  (let ((prefix (uiop:getenv "NITORY_SAVE_PREFIX")))
+    (when prefix
+      (setf *prefix* prefix)))
   (setf *napcat-websocket-client* (make-napcat :url (gethash 'url opts)
                                                :address (gethash 'url opts)
                                                :port (gethash 'url opts)))
@@ -116,6 +119,7 @@
   (on :request *napcat-websocket-client* #'event/receive-request)
   (v:info :main "Enable nickname service.")
   (nick/enable-nick)
+  (khst/enable-khst)
   (v:info :main "Starting formal connection.")
   (connect *napcat-websocket-client*)
   (v:info :main "Done. Trapped into a loop.")
@@ -124,6 +128,7 @@
 (defun nitory/cleanup ()
   (v:info :main "Exiting.")
   (nick/save-nicks)
+  (khst/save-list)
   (v:stop v:*global-controller*))
 
 (defun main ()
@@ -158,7 +163,7 @@
             ((string= "help" cmd) (nitory/cmd-help json args))
             ((re:scan "^rh?([+-]\\d+|\\d+)?$" cmd) (dice/cmd-roll json args))
             ((string= "nn" cmd) (nick/cmd-set-nick json args))
-            ;;((string= "khst" cmd) (khst/cmd-khst json rest))
+            ((string= "khst" cmd) (khst/cmd-khst json args))
             (t (nitory/cmd-not-supported json args)))))))))
 
 (defun nitory/print-help (rest)

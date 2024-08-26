@@ -178,6 +178,7 @@
          (data (json:encode-json-alist-to-string `((:action . ,action)
                                                    (:params . ,params)
                                                    (:echo . ,serial)))))
+    (v:info :napcat "Sending data: ~a" data)
     (bb:with-promise (resolve reject)
       (once (to-sym serial) napcat-instance
             (lambda (json)
