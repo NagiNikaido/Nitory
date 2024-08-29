@@ -55,7 +55,7 @@
                (string= "text" (gethash "type" (first message))))
       (let* ((raw-msg (gethash "text" (gethash "data" (first message))))
              (entries (gethash raw-msg *khst-lists*)))
-        (v:debug :khst "Seeking keywords in: ~a" raw-msg)
+        (v:debug :khst "Seeking keywords ~a in: ~a" raw-msg entries)
         (when entries
           (let ((entry (elt entries (random (length entries)))))
             (v:info :khst "Found ~a for keyword \"~a\"" entry raw-msg)
@@ -68,7 +68,8 @@
   (let ((filename (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
     (unless (gethash keyword *khst-lists*)
       (setf (gethash keyword *khst-lists*) nil))
-    (push (namestring filename) (gethash keyword *khst-lists*))
+    (unless (find (namestring filename) (gethash keyword *khst-lists*) :test #'equal)
+      (push (namestring filename) (gethash keyword *khst-lists*)))
     (ensure-directories-exist filename)
     (uiop:copy-file picture filename)))
 
@@ -76,9 +77,13 @@
   (let ((dest (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
     (unless (gethash keyword *khst-lists*)
       (setf (gethash keyword *khst-lists*) nil))
-    (push (namestring dest) (gethash keyword *khst-lists*))
+    (unless (find (namestring dest) (gethash keyword *khst-lists*) :test #'equal)
+      (push (namestring dest) (gethash keyword *khst-lists*)))
     (ensure-directories-exist dest)
-    (dex:fetch uri dest)))
+    (handler-case
+        (dex:fetch uri dest)
+      (file-error (c)
+        (v:warn :khst "~a" c)))))
 
 (defun khst/cmd-khst (json args)
   (let* ((msg-type (gethash "message_type" json))
@@ -104,15 +109,16 @@
                                      (:message . #(((:type . "text")
                                                     (:data . ((:text . "* 并非图片"))))))))
                                  (let ((file (gethash "file" (gethash "data" (first nmsg))))
-                                        (uri (gethash "url" (gethash "data" (first nmsg)))))
-                                   (handler-case
-                                       (khst/save-remote-and-add-to-list keyword file uri)
-                                     (file-error (c)
-                                       (v:warn :khst "~a" c)))
+                                       (uri (gethash "url" (gethash "data" (first nmsg)))))
+                                   (khst/save-remote-and-add-to-list keyword file uri)
                                    (bt2:signal-semaphore sema))))))))
               (bt2:make-thread
                (lambda ()
                  (v:debug :khst "in thread ~a" (bt2:current-thread))
+                 (do-send-group-msg *napcat-websocket-client*
+                   `((:group-id . ,group-id)
+                     (:message . #(((:type . "text")
+                                    (:data . ((:text . "* 等待添加图片中"))))))))
                  (on :message.group *napcat-websocket-client* cb)
                  (let ((msg (if (bt2:wait-on-semaphore sema :timeout 30)
                                 (format nil "* 已收录~a~d" keyword
@@ -122,13 +128,14 @@
                      `((:group-id . ,group-id)
                        (:message . #(((:type . "text")
                                       (:data . ((:text . ,msg)))))))))
-                 (remove-listener *napcat-websocket-client* :message.group cb)))
-              :name "khst timeout daemon")))
-        (when msg
-          (do-send-msg *napcat-websocket-client*
-            (list (a:switch (msg-type :test #'equal)
-                    ("group" `(:group-id . ,group-id))
-                    ("private" `(:user-id . ,user-id)))
-                  `(:message-type . ,msg-type)
-                  `(:message . #(((:type . "text")
-                                  (:data . ((:text . ,msg)))))))))))
+                 (v:debug :khst "removing cb ~a" cb)
+                 (remove-listener *napcat-websocket-client* :message.group cb))
+               :name "khst timeout daemon"))))
+    (when msg
+      (do-send-msg *napcat-websocket-client*
+        (list (a:switch (msg-type :test #'equal)
+                ("group" `(:group-id . ,group-id))
+                ("private" `(:user-id . ,user-id)))
+              `(:message-type . ,msg-type)
+              `(:message . #(((:type . "text")
+                              (:data . ((:text . ,msg)))))))))))
