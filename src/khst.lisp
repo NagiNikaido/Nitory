@@ -58,7 +58,7 @@
         (v:debug :khst "Seeking keywords in: ~a" raw-msg)
         (when entries
           (let ((entry (elt entries (random (length entries)))))
-            (v:info :khst "Found ~a for keyword \"~a\"" raw-msg)
+            (v:info :khst "Found ~a for keyword \"~a\"" entry raw-msg)
             (do-send-group-msg *napcat-websocket-client*
               `((:group-id . ,group-id)
                 (:message . #(((:type . "image")
@@ -105,7 +105,10 @@
                                                     (:data . ((:text . "* 并非图片"))))))))
                                  (let ((file (gethash "file" (gethash "data" (first nmsg))))
                                        (uri (gethash "url" (gethash "data" (first nmsg)))))
-                                   (khst/save-remote-and-add-to-list keyword file uri)
+                                   (handler-case
+                                       (khst/save-remote-and-add-to-list keyword file uri)
+                                     (file-error (c)
+                                       (v:warn :khst "~a" c)))
                                    (bt2:signal-semaphore sema))))))))
               (bt2:make-thread
                (lambda ()
@@ -113,7 +116,7 @@
                  (on :message.group *napcat-websocket-client* cb)
                  (let ((msg (if (bt2:wait-on-semaphore sema :timeout 30)
                                 (format nil "* 已收录~a~d" keyword
-                                        (length (getf *khst-lists* keyword)))
+                                        (length (gethash keyword *khst-lists*)))
                                 "* 已超时，取消收录")))
                    (do-send-group-msg *napcat-websocket-client*
                      `((:group-id . ,group-id)
