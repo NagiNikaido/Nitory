@@ -173,6 +173,7 @@
 指令列表:
 .r: 掷骰指令（默认d20）
 .nn: 设置昵称
+.khst: 看话说图
 .help: 显示本帮助
 更多功能开发中" +version+ (cur-decoded-timestamp)))
 
