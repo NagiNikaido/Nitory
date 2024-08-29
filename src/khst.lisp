@@ -95,7 +95,7 @@
                                    `((:group-id . ,group-id)
                                      (:message . #(((:type . "text")
                                                     (:data . ((:text . "* 并非图片"))))))))
-                                 (let ((file (gethash "file_id" (gethash "data" (first nmsg)))))
+                                 (let ((file (gethash "file" (gethash "data" (first nmsg)))))
                                    (bb:chain
                                     (do-get-image *napcat-websocket-client*
                                       `((:file . ,file)))
