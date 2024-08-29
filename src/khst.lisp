@@ -62,7 +62,7 @@
             (do-send-group-msg *napcat-websocket-client*
               `((:group-id . ,group-id)
                 (:message . #(((:type . "image")
-                               (:data . ((:file . (concat "file://" entry)))))))))))))))
+                               (:data . ((:file . ,(concat "file://" entry)))))))))))))))
 
 (defun khst/save-and-add-to-list (keyword picture)
   (let ((filename (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
@@ -104,7 +104,7 @@
                                      (:message . #(((:type . "text")
                                                     (:data . ((:text . "* 并非图片"))))))))
                                  (let ((file (gethash "file" (gethash "data" (first nmsg))))
-                                       (uri (gethash "url" (gethash "data" (first nmsg)))))
+                                        (uri (gethash "url" (gethash "data" (first nmsg)))))
                                    (handler-case
                                        (khst/save-remote-and-add-to-list keyword file uri)
                                      (file-error (c)
