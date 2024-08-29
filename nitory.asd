@@ -29,6 +29,7 @@
   :depends-on ("alexandria"
                "event-emitter"
 	       "websocket-driver"
+               "dexador"
 	       "cl-json"
                "yason"
                "cl-ppcre"

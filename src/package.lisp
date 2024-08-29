@@ -25,7 +25,8 @@
                     (:json :cl-json)
                     (:v :org.shirakumo.verbose)
                     (:sig :trivial-signal)
-                    (:bb :blackbird))
+                    (:bb :blackbird)
+                    (:dex :dexador))
   (:export
    #:main
    #:dice/parse-dice-cell

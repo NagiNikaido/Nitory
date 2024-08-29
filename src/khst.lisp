@@ -65,12 +65,20 @@
                                (:data . ((:file . (concat "file://" entry)))))))))))))))
 
 (defun khst/save-and-add-to-list (keyword picture)
-  (let* ((filename (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
+  (let ((filename (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
     (unless (gethash keyword *khst-lists*)
       (setf (gethash keyword *khst-lists*) nil))
     (push (namestring filename) (gethash keyword *khst-lists*))
     (ensure-directories-exist filename)
     (uiop:copy-file picture filename)))
+
+(defun khst/save-remote-and-add-to-list (keyword picture uri)
+  (let ((dest (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
+    (unless (gethash keyword *khst-lists*)
+      (setf (gethash keyword *khst-lists*) nil))
+    (push (namestring dest) (gethash keyword *khst-lists*))
+    (ensure-directories-exist dest)
+    (dex:fetch uri dest)))
 
 (defun khst/cmd-khst (json args)
   (let* ((msg-type (gethash "message_type" json))
@@ -95,15 +103,10 @@
                                    `((:group-id . ,group-id)
                                      (:message . #(((:type . "text")
                                                     (:data . ((:text . "* 并非图片"))))))))
-                                 (let ((file (gethash "file" (gethash "data" (first nmsg)))))
-                                   (bb:chain
-                                    (do-get-image *napcat-websocket-client*
-                                      `((:file . ,file)))
-                                    (:attach (data)
-                                             (let ((downloaded (gethash "file" data)))
-                                               (khst/save-and-add-to-list keyword downloaded)))
-                                    (:finally (c)
-                                              (bt2:signal-semaphore sema))))))))))
+                                 (let ((file (gethash "file" (gethash "data" (first nmsg))))
+                                       (uri (gethash "url" (gethash "data" (first nmsg)))))
+                                   (khst/save-remote-and-add-to-list keyword file uri)
+                                   (bt2:signal-semaphore sema))))))))
               (bt2:make-thread
                (lambda ()
                  (v:debug :khst "in thread ~a" (bt2:current-thread))
