@@ -22,7 +22,7 @@
 
 (defconstant +max-packet-count+ #x100000000)
 
-(defclass napcat (event-emitter:event-emitter)
+(defclass napcat (event-bus)
   ((url
     :initarg :url
     :initform "ws://localhost:3001"
@@ -68,35 +68,35 @@
       (handler-case (wsd:start-connection client)
         (error (e) (emit ":socket.error" napcat-instance e))))))
 
-(defmethod on (event (napcat-instance napcat) listener)
-  (apply #'event-emitter:on `(,(to-sym event) ,napcat-instance ,listener)))
+;; (defmethod on (event (napcat-instance napcat) listener)
+;;   (apply #'event-emitter:on `(,(to-sym event) ,napcat-instance ,listener)))
 
-(defmethod once (event (napcat-instance napcat) listener)
-  (apply #'event-emitter:once `(,(to-sym event) ,napcat-instance ,listener)))
+;; (defmethod once (event (napcat-instance napcat) listener)
+;;   (apply #'event-emitter:once `(,(to-sym event) ,napcat-instance ,listener)))
 
-(defmethod emit (event (napcat-instance napcat) &rest args)
-  (let ((cemit (apply #'event-emitter:emit
-                      `(,(to-sym event) ,napcat-instance ,@args)))
-        (npos (position #\. (reverse event))))
-    (if npos
-        (or (apply #'emit
-                   `(,(subseq event 0 (- (length event) (1+ npos))) ,napcat-instance ,@args))
-            cemit)
-        cemit)))
+;; (defmethod emit (event (napcat-instance napcat) &rest args)
+;;   (let ((cemit (apply #'event-emitter:emit
+;;                       `(,(to-sym event) ,napcat-instance ,@args)))
+;;         (npos (position #\. (reverse event))))
+;;     (if npos
+;;         (or (apply #'emit
+;;                    `(,(subseq event 0 (- (length event) (1+ npos))) ,napcat-instance ,@args))
+;;             cemit)
+;;         cemit)))
 
-(defmethod remove-listener ((napcat-instance napcat) event listener &key (start 0))
-  (event-emitter:remove-listener napcat-instance (to-sym event) listener
-                                 :start start))
+;; (defmethod remove-listener ((napcat-instance napcat) event listener &key (start 0))
+;;   (event-emitter:remove-listener napcat-instance (to-sym event) listener
+;;                                  :start start))
 
-(defmethod remove-all-listeners ((napcat-instance napcat) &optional event)
-  (event-emitter:remove-all-listeners napcat-instance
-                                      (or event (values))))
+;; (defmethod remove-all-listeners ((napcat-instance napcat) &optional event)
+;;   (event-emitter:remove-all-listeners napcat-instance
+;;                                       (or event (values))))
 
-(defmethod listeners ((napcat-instance napcat) event)
-  (event-emitter:listeners napcat-instance (to-sym event)))
+;; (defmethod listeners ((napcat-instance napcat) event)
+;;   (event-emitter:listeners napcat-instance (to-sym event)))
 
-(defmethod listener-count ((napcat-instance napcat) event)
-  (event-emitter:listener-count napcat-instance (to-sym event)))
+;; (defmethod listener-count ((napcat-instance napcat) event)
+;;   (event-emitter:listener-count napcat-instance (to-sym event)))
 
 (defmethod receive-data ((napcat-instance napcat) data)
   (v:info :napcat "received data: ~A" data)
@@ -162,7 +162,7 @@
 
 (defmethod receive-response ((napcat-instance napcat) json)
   (let ((echo (gethash "echo" json)))
-    (event-emitter:emit (to-sym echo) napcat-instance json)))
+    (emit echo napcat-instance json)))
 
 (defmethod cur-packet-id ((napcat-instance napcat))
   (format nil ":x~8,'0x" (total-packets napcat-instance)))
@@ -180,7 +180,7 @@
                                                    (:echo . ,serial)))))
     (v:info :napcat "Sending data: ~a" data)
     (bb:with-promise (resolve reject)
-      (once (to-sym serial) napcat-instance
+      (once serial napcat-instance
             (lambda (json)
               (let ((data (gethash "data" json)))
                 (if (= 0 (gethash "retcode" json))

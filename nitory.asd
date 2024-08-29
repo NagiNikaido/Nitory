@@ -27,7 +27,7 @@
   :author "NagiNikaido <naginikaido@kuusouhakuchuu.cn>"
   :license "GPL-v3.0-or-later"
   :depends-on ("alexandria"
-               "event-emitter"
+;               "event-emitter"
 	       "websocket-driver"
                "dexador"
 	       "cl-json"
@@ -46,6 +46,7 @@
     :components
     ((:file "package")
      (:file "utils")
+     (:file "event-bus")
      (:file "napcat-types")
      (:file "napcat")
      (:file "nick")
