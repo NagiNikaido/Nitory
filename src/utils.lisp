@@ -21,7 +21,7 @@
 (in-package #:nitory)
 
 ;; managed by version bumper
-(defparameter +version+ "0.0.3")
+(defparameter +version+ "0.0.4")
 (setf json:*lisp-identifier-name-to-json* #'(lambda (sym)
                                               (string-downcase
                                                (substitute #\_ #\- sym))))
