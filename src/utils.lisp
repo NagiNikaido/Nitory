@@ -33,6 +33,8 @@
 (defvar *startup-timestamp* nil)
 (defvar *admin* nil)
 (defvar *prefix* "/opt/nitory/")
+(defvar *self-id* nil)
+
 
 (defun join (str list)
   (declare (inline join))

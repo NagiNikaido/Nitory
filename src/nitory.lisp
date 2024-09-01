@@ -123,6 +123,9 @@
   (v:info :main "Starting formal connection.")
   (connect *napcat-websocket-client*)
   (v:info :main "Done. Trapped into a loop.")
+  (bb:alet ((res (do-get-login-info *napcat-websocket-client* '())))
+           (setf *self-id* (gethash "user_id" res))
+           (v:info :main "Logged in with ~a" *self-id*))
   (loop (sleep 100)))
 
 (defun nitory/cleanup ()
@@ -149,22 +152,43 @@
     (error (c)
       (adopt:print-error-and-exit c))))
 
+(defun split-at (message)
+  (let ((at? (first message)))
+    (v:debug :main "~a" (gethash "type" at?))
+    (if (and at?
+             (string= "at" (gethash "type" at?)))
+        (list (parse-integer (gethash "qq" (gethash "data" at?)))
+              (cdr message))
+        (list nil message))))
+
+(defun split-reply (message)
+  (let ((reply? (first message)))
+    (v:debug :main "~a" (gethash "type" reply?))
+    (if (and reply?
+             (string= "reply" (gethash "type" reply?)))
+        (cons (parse-integer (gethash "id" (gethash "data" reply?)))
+              (split-at (cdr message)))
+        (cons nil (split-at message)))))
+
 (defun event/receive-command (json)
-  (let ((message (gethash "message" json)))
-  (when (and (= 1 (length message))
-             (string= "text" (gethash "type" (first message))))
-    (let* ((raw-msg (gethash "text" (gethash "data" (first message))))
-           (leading (char raw-msg 0)))
-      (when (or (char= #\/ leading)
-                (char= #\. leading)) ; it is a command
-        (let* ((args (re:split "\\s+" (subseq raw-msg 1)))
-               (cmd (car args)))
-          (cond
-            ((string= "help" cmd) (nitory/cmd-help json args))
-            ((re:scan "^rh?([+-]\\d+|\\d+)?$" cmd) (dice/cmd-roll json args))
-            ((string= "nn" cmd) (nick/cmd-set-nick json args))
-            ((string= "khst" cmd) (khst/cmd-khst json args))
-            (t (nitory/cmd-not-supported json args)))))))))
+  (v:debug :main "~a" (split-reply (gethash "message" json)))
+  (multiple-value-bind (reply-id at-id message)
+      (values-list (split-reply (gethash "message" json)))
+    (when (and (= 1 (length message))
+               (string= "text" (gethash "type" (first message))))
+      (let* ((raw-msg (string-left-trim " " (gethash "text" (gethash "data" (first message)))))
+             (leading (char raw-msg 0)))
+        (when (or (char= #\/ leading)
+                  (char= #\. leading)) ; it is a command
+          (let* ((args (re:split "\\s+" (subseq raw-msg 1)))
+                 (cmd (car args)))
+            (cond
+              ((string= "help" cmd) (nitory/cmd-help json args))
+              ((re:scan "^rh?([+-]\\d+|\\d+)?$" cmd) (dice/cmd-roll json args))
+              ((string= "nn" cmd) (nick/cmd-set-nick json args))
+              ((string= "khst" cmd) (khst/cmd-khst json args))
+              ((string= "rm" cmd) (khst/cmd-remove json args :reply reply-id :at at-id))
+              (t (nitory/cmd-not-supported json args)))))))))
 
 (defun nitory/print-help (rest)
   (format nil
@@ -177,7 +201,7 @@
 .help: 显示本帮助
 更多功能开发中" +version+ (cur-decoded-timestamp)))
 
-(defun nitory/cmd-help (json args)
+(defun nitory/cmd-help (json args &key &allow-other-keys)
   (let* ((msg-type (gethash "message_type" json))
 	 (group-id (gethash "group_id" json))
 	 (user-id (gethash "user_id" json))
@@ -190,7 +214,7 @@
 	    `(:message . #(((:type . "text")
 			    (:data . ((:text . ,msg))))))))))
 
-(defun nitory/cmd-not-supported (json args)
+(defun nitory/cmd-not-supported (json args &key &allow-other-keys)
   (let* ((msg-type (gethash "message_type" json))
 	 (group-id (gethash "group_id" json))
 	 (user-id (gethash "user_id" json))

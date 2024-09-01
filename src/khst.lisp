@@ -21,18 +21,29 @@
 (in-package #:nitory)
 
 (defvar *khst-lists* (make-hash-table))
+(defvar *khst-history* (make-hash-table))
 (defvar *khst-lists-path* nil)
+(defvar *khst-history-path* nil)
 (defvar *khst-pic-prefix* nil)
 
 (defun khst/enable-khst ()
   (setf *khst-lists-path* (merge-pathnames "khst-lists" *prefix*))
+  (setf *khst-history-path* (merge-pathnames "khst-history" *prefix*))
   (setf *khst-pic-prefix* (merge-pathnames "pics/" *prefix*))
   (ensure-directories-exist *khst-lists-path*)
+  (ensure-directories-exist *khst-history-path*)
   (handler-case
       (with-open-file (s *khst-lists-path*
 			 :direction :input
 			 :if-does-not-exist :error)
 	(setf *khst-lists* (a:plist-hash-table (read s) :test #'equal)))
+    (error (c)
+      (v:warn :khst "~a" c)))
+  (handler-case
+      (with-open-file (s *khst-history-path*
+                         :direction :input
+                         :if-does-not-exist :error)
+        (setf *khst-history* (a:plist-hash-table (read s) :test #'equal)))
     (error (c)
       (v:warn :khst "~a" c)))
   (on :message.group *napcat-websocket-client*
@@ -46,6 +57,12 @@
 		     :if-exists :supersede)
     (v:info :khst "Saving khst lists...")
     (unwind-protect (print (a:hash-table-plist *khst-lists*) s))
+    (v:info :khst "Done."))
+  (with-open-file (s *khst-history-path*
+                     :direction :output
+                     :if-exists :supersede)
+    (v:info :khst "Saving khst history...")
+    (unwind-protect (print (a:hash-table-plist *khst-history*) s))
     (v:info :khst "Done.")))
 
 (defun khst/capture-keyword-and-respond-image (json)
@@ -59,10 +76,14 @@
         (when entries
           (let ((entry (elt entries (random (length entries)))))
             (v:info :khst "Found ~a for keyword \"~a\"" entry raw-msg)
-            (do-send-group-msg *napcat-websocket-client*
-              `((:group-id . ,group-id)
-                (:message . #(((:type . "image")
-                               (:data . ((:file . ,(concat "file://" entry)))))))))))))))
+            (bb:alet ((response (do-send-group-msg *napcat-websocket-client*
+                                  `((:group-id . ,group-id)
+                                    (:message . #(((:type . "image")
+                                                   (:data . ((:file . ,(concat "file://" entry)))))))))))
+                     (let ((msg-id (gethash "message_id" response)))
+                       (v:info :khst "Saving history line ~a:(~a ~a)" msg-id raw-msg entry)
+                       (setf (gethash msg-id *khst-history*)
+                             (list raw-msg entry))))))))))
 
 (defun khst/save-and-add-to-list (keyword picture)
   (let ((filename (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
@@ -85,16 +106,47 @@
       (file-error (c)
         (v:warn :khst "~a" c)))))
 
-(defun khst/cmd-khst (json args)
+(defun khst/cmd-remove (json args &key reply at &allow-other-keys)
+  (let ((msg-type (gethash "message_type" json))
+        (group-id (gethash "group_id" json))
+        (user-id (gethash "user_id" json))
+        (res nil))
+    (if (string/= "group" msg-type)
+        (setf res "本指令仅在群聊中可用")
+        (if (or (null reply)
+                (and at (/= at *self-id*))
+                (/= 1 (length args)))
+            (setf res "格式错误")
+            (let ((history-line (gethash reply *khst-history*)))
+              (if (null history-line)
+                  (setf res "* 未找到看话说图记录。是否回复错误？")
+                  (let* ((keyword (first history-line))
+                         (entry (second history-line))
+                         (entries (gethash keyword *khst-lists*)))
+                    (if (find entry entries :test #'equal)
+                        (progn (setf (gethash keyword *khst-lists*)
+                                     (remove entry entries))
+                               (setf res (format nil "* 已从关键词\"~a\"的条目中删除了该图片" keyword))
+                               (v:info :khst "removed ~a from ~a:~a" entry keyword entries))
+                        (setf res (format nil "* 该图片已不在关键词\"~a\"的条目中。是否已被删除？" keyword))))))))
+    (do-send-msg *napcat-websocket-client*
+        (list (a:switch (msg-type :test #'equal)
+                ("group" `(:group-id . ,group-id))
+                ("private" `(:user-id . ,user-id)))
+              `(:message-type . ,msg-type)
+              `(:message . #(((:type . "text")
+                              (:data . ((:text . ,res))))))))))
+
+(defun khst/cmd-khst (json args &key &allow-other-keys)
   (let* ((msg-type (gethash "message_type" json))
          (message (gethash "message" json))
          (group-id (gethash "group_id" json))
          (user-id (gethash "user_id" json))
-         (msg nil))
+         (res nil))
     (if (string/= "group" msg-type)
-        (setf msg "本指令仅在群聊中可用")
+        (setf res "本指令仅在群聊中可用")
         (if (/= 2 (length args))
-            (setf msg "格式错误")
+            (setf res "格式错误")
             (let* ((keyword (elt args 1))
                    (sema (bt2:make-semaphore))
                    (cb (lambda (njson)
@@ -120,22 +172,22 @@
                      (:message . #(((:type . "text")
                                     (:data . ((:text . "* 等待添加图片中"))))))))
                  (on :message.group *napcat-websocket-client* cb)
-                 (let ((msg (if (bt2:wait-on-semaphore sema :timeout 30)
+                 (let ((res (if (bt2:wait-on-semaphore sema :timeout 30)
                                 (format nil "* 已收录~a~d" keyword
                                         (length (gethash keyword *khst-lists*)))
                                 "* 已超时，取消收录")))
                    (do-send-group-msg *napcat-websocket-client*
                      `((:group-id . ,group-id)
                        (:message . #(((:type . "text")
-                                      (:data . ((:text . ,msg)))))))))
+                                      (:data . ((:text . ,res)))))))))
                  (v:debug :khst "removing cb ~a" cb)
                  (remove-listener *napcat-websocket-client* :message.group cb))
                :name "khst timeout daemon"))))
-    (when msg
+    (when res
       (do-send-msg *napcat-websocket-client*
         (list (a:switch (msg-type :test #'equal)
                 ("group" `(:group-id . ,group-id))
                 ("private" `(:user-id . ,user-id)))
               `(:message-type . ,msg-type)
               `(:message . #(((:type . "text")
-                              (:data . ((:text . ,msg)))))))))))
+                              (:data . ((:text . ,res)))))))))))
