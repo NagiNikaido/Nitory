@@ -44,7 +44,7 @@
                                (:name? . string)
                                (:url? . string)
                                (:summary? . string)
-                               (:subtype? . ,(lambda (x) (or (= x 0) (= x 1))))))))
+                               (:sub-type . ,(lambda (x) (or (= x 0) (= x 1))))))))
       (alist-p seg '((:type . "at")
                      (:data . ((:qq . number)
                                (:name? . string)))))

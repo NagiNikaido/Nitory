@@ -68,36 +68,6 @@
       (handler-case (wsd:start-connection client)
         (error (e) (emit ":socket.error" napcat-instance e))))))
 
-;; (defmethod on (event (napcat-instance napcat) listener)
-;;   (apply #'event-emitter:on `(,(to-sym event) ,napcat-instance ,listener)))
-
-;; (defmethod once (event (napcat-instance napcat) listener)
-;;   (apply #'event-emitter:once `(,(to-sym event) ,napcat-instance ,listener)))
-
-;; (defmethod emit (event (napcat-instance napcat) &rest args)
-;;   (let ((cemit (apply #'event-emitter:emit
-;;                       `(,(to-sym event) ,napcat-instance ,@args)))
-;;         (npos (position #\. (reverse event))))
-;;     (if npos
-;;         (or (apply #'emit
-;;                    `(,(subseq event 0 (- (length event) (1+ npos))) ,napcat-instance ,@args))
-;;             cemit)
-;;         cemit)))
-
-;; (defmethod remove-listener ((napcat-instance napcat) event listener &key (start 0))
-;;   (event-emitter:remove-listener napcat-instance (to-sym event) listener
-;;                                  :start start))
-
-;; (defmethod remove-all-listeners ((napcat-instance napcat) &optional event)
-;;   (event-emitter:remove-all-listeners napcat-instance
-;;                                       (or event (values))))
-
-;; (defmethod listeners ((napcat-instance napcat) event)
-;;   (event-emitter:listeners napcat-instance (to-sym event)))
-
-;; (defmethod listener-count ((napcat-instance napcat) event)
-;;   (event-emitter:listener-count napcat-instance (to-sym event)))
-
 (defmethod receive-data ((napcat-instance napcat) data)
   (v:info :napcat "received data: ~A" data)
   (let* ((json (yason:parse data))

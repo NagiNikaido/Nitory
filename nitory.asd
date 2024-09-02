@@ -22,7 +22,7 @@
 (push :verbose-no-init *features*)
 
 (asdf:defsystem "nitory"
-  :description "Nitory: A multipurposed chatbot based on OneBot & NapCat."
+  :description "Nitory: A multipurpose chatbot based on OneBot & NapCat."
   :version (:read-file-form "VERSION")
   :author "NagiNikaido <naginikaido@kuusouhakuchuu.cn>"
   :license "GPL-v3.0-or-later"

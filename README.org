@@ -1,0 +1,5 @@
+#+TITLE: Nitory
+#+AUTHOR: NagiNikaido
+#+DATE: <2024-09-02>
+
+* Nitory: A multipurpose chatbot based on OneBot.

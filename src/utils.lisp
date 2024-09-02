@@ -22,9 +22,6 @@
 
 ;; managed by version bumper
 (defparameter +version+ "0.0.4")
-(setf json:*lisp-identifier-name-to-json* #'(lambda (sym)
-                                              (string-downcase
-                                               (substitute #\_ #\- sym))))
 (setf *random-state* (make-random-state))
 (setf re:*allow-named-registers* t)
 (setf v:*process-locally* t)
@@ -60,15 +57,30 @@
     (t (error (format nil "~a is no STRING nor SYMBOL!" string-or-sym)))))
 
 (defun strip-optional (keysym)
+  "Strip the trilling ? if keysym is an optional key."
   (if (optional-p keysym)
       (to-sym
-       (reverse (subseq (reverse (to-string keysym)) 1)))
+       (remove #\? (to-string keysym) :from-end t :count 1))
       keysym))
 
 (defun optional-p (keysym)
-  (char= #\? (char (reverse (to-string keysym)) 0)))
+  "Check whether KEYSYM is an optional key. It should be either end with ? or ?|."
+  (let* ((str (to-string keysym))
+         (len (length str)))
+    (find #\? (reverse str) :end (min 2 len))))
 
-(defun cur-decoded-timestamp ()
+(defun keysym-name-to-json (name)
+  "Translating keysym NAME into json keys. Noticing that cl-json gives us (symbol-name keysym)
+which strips ||, we have to determine whether to convert name into underline style or just to
+preserve the current style by checking if all characters of NAME are uppercase."
+  (if (every (lambda (x) (or (upper-case-p x)
+                             (not (alpha-char-p x)))) name)
+      (string-downcase (substitute #\_ #\- name))
+      name))
+
+(setf json:*lisp-identifier-name-to-json* #'keysym-name-to-json)
+
+(defun current-decoded-timestamp ()
   (multiple-value-bind (second minute hour day month year _1 _2 tz)
       (get-decoded-time)
     (format nil "~d/~2,'0d/~2,'0d ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"

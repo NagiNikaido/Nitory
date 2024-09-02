@@ -1,6 +1,6 @@
 ;;;; -*- Mode: lisp; indent-tabs-mode: nil -*-
 ;;;
-;;; nitory.lisp ---- A Multiple Purposed Chatbot based on OneBot framework. 
+;;; nitory.lisp ---- A Multipurpose Chatbot based on OneBot framework. 
 ;;;
 ;;; Copyright (C) 2024  NagiNikaido <naginikaido@kuusouhakuchuu.cn>
 ;;;
@@ -99,10 +99,10 @@
                    *option-port*)))
 
 (defun nitory/main (opts)
-  (setf *startup-timestamp* (cur-decoded-timestamp))
+  (setf *startup-timestamp* (current-decoded-timestamp))
   (setf (v:repl-level) (or (gethash 'loglevel opts) :info))
   (v:start v:*global-controller*)
-  (v:info :main "Hello from Nitory v~a, a multiple-purposed chatbot based on OneBot v11 & NapCat." +version+)
+  (v:info :main "Hello from Nitory v~a, a multipurpose chatbot based on OneBot v11 & NapCat." +version+)
   (v:info :main "Running on ~a" (uiop:implementation-identifier))
   (let ((admin (uiop:getenv "NITORY_ADMIN")))
     (when admin
@@ -200,7 +200,7 @@
 .khst: 看话说图
 .rm: 删除看话说图条目
 .help: 显示本帮助
-更多功能开发中" +version+ (cur-decoded-timestamp)))
+更多功能开发中" +version+ (current-decoded-timestamp)))
 
 (defun nitory/cmd-help (json args &key &allow-other-keys)
   (let* ((msg-type (gethash "message_type" json))
