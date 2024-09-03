@@ -21,7 +21,7 @@
 (in-package #:nitory)
 
 ;; managed by version bumper
-(defparameter +version+ "0.0.4")
+(defparameter +version+ "0.0.5")
 (setf *random-state* (make-random-state))
 (setf re:*allow-named-registers* t)
 (setf v:*process-locally* t)
