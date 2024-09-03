@@ -117,7 +117,19 @@
         (if (or (null reply)
                 (and at (/= at *self-id*))
                 (/= 1 (length args)))
-            (setf res "格式错误")
+            (if (and (>= (length args) 2)
+                     (string= "-rf" (second args))) ; It's an easter egg!
+                (progn
+                  (do-send-msg *napcat-websocket-client*
+                    (list (a:switch (msg-type :test #'equal)
+                            ("group" `(:group-id . ,group-id))
+                            ("private" `(:user-id . ,user-id)))
+                          `(:message-type . ,msg-type)
+                          `(:message . #(((:type . "image")
+                                          (:data . ((:file . ,*khst-are-you-sure*)
+                                                    (:sub-type . 1))))))))
+                  (return-from khst/cmd-remove))
+                (setf res "格式错误"))
             (let ((history-line (gethash reply *khst-history*)))
               (if (null history-line)
                   (setf res "* 未找到看话说图记录。是否回复错误？")

@@ -51,6 +51,7 @@
      (:file "napcat")
      (:file "nick")
      (:file "dice")
+     (:file "khst-easter-egg")
      (:file "khst")
      (:file "nitory"))))
   :build-operation "program-op"
