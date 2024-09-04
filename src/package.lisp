@@ -21,6 +21,7 @@
 (defpackage #:nitory
   (:use #:common-lisp)
   (:local-nicknames (:a :alexandria)
+                    (:s :serapeum)
                     (:re :cl-ppcre)
                     (:json :cl-json)
                     (:v :org.shirakumo.verbose)

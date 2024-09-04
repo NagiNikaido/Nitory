@@ -69,7 +69,7 @@
 				   (format nil "* ~a 现在的昵称为 ~a" default-nick current-nick)))
 		  (t "指令格式错误")))))
     (do-send-msg *napcat-websocket-client*
-      (list (a:switch (msg-type :test #'equal)
+      (list (str:string-case msg-type
 	      ("group" `(:group-id . ,group-id))
 	      ("private" `(:user-id . ,user-id)))
 	    `(:message-type . ,msg-type)

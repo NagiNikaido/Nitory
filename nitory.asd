@@ -26,18 +26,20 @@
   :version (:read-file-form "VERSION")
   :author "NagiNikaido <naginikaido@kuusouhakuchuu.cn>"
   :license "GPL-v3.0-or-later"
-  :depends-on ("alexandria"
-;               "event-emitter"
-	       "websocket-driver"
-               "dexador"
-	       "cl-json"
-               "yason"
-               "cl-ppcre"
-               "verbose"
-               "adopt"
-               "trivial-signal"
+  :depends-on ("adopt"
+               "alexandria"
                "blackbird"
-               "bordeaux-threads")
+               "bordeaux-threads"
+               "cl-json"
+               "cl-ppcre"
+               "dexador"
+               "serapeum"
+               "str"
+               "trivial-signal"
+               "trivial-package-local-nicknames"
+               "verbose"
+	       "websocket-driver"
+               "yason")
   :components
   ((:static-file "LICENSE")
    (:static-file "VERSION")
@@ -60,13 +62,13 @@
   :in-order-to ((asdf:test-op (asdf:test-op "nitory/test"))))
 
 (asdf:defsystem "nitory/test"
-  :depends-on ("alexandria"
-               "nitory"
-               "rove"
-               "cl-json"
-               "cl-ppcre"
+  :depends-on ("nitory"
+               "alexandria"
                "blackbird"
                "bordeaux-threads"
+               "cl-json"
+               "cl-ppcre"
+               "rove"
                "verbose")
   :components
   ((:module "test"

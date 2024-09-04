@@ -176,11 +176,11 @@
       (values-list (split-reply (gethash "message" json)))
     (when (and (= 1 (length message))
                (string= "text" (gethash "type" (first message))))
-      (let* ((raw-msg (string-left-trim " " (gethash "text" (gethash "data" (first message)))))
+      (let* ((raw-msg (str:trim (gethash "text" (gethash "data" (first message)))))
              (leading (char raw-msg 0)))
         (when (or (char= #\/ leading)
                   (char= #\. leading)) ; it is a command
-          (let* ((args (re:split "\\s+" (subseq raw-msg 1)))
+          (let* ((args (str:words (subseq raw-msg 1)))
                  (cmd (car args)))
             (cond
               ((string= "help" cmd) (nitory/cmd-help json args))
@@ -208,7 +208,7 @@
 	 (user-id (gethash "user_id" json))
 	 (msg (nitory/print-help args)))
     (do-send-msg *napcat-websocket-client*
-      (list (a:switch (msg-type :test #'equal)
+      (list (str:string-case msg-type
 	      ("group" `(:group-id . ,group-id))
 	      ("private" `(:user-id . ,user-id)))
 	    `(:message-type . ,msg-type)
@@ -221,7 +221,7 @@
 	 (user-id (gethash "user_id" json))
 	 (msg "无效指令"))
     (do-send-msg *napcat-websocket-client*
-      (list (a:switch (msg-type :test #'equal)
+      (list (str:string-case msg-type
 	      ("group" `(:group-id . ,group-id))
 	      ("private" `(:user-id . ,user-id)))
 	    `(:message-type . ,msg-type)
@@ -233,17 +233,17 @@
 
 (defun event/receive-request (json)
   (format t "event/receive-request:~%")
-  (let* ((request-type (a:ensure-gethash "request_type" json nil))
-         (sub-type (a:ensure-gethash "sub_type" json nil))
-         (group-id (a:ensure-gethash "group_id" json nil))
-         (user-id (a:ensure-gethash "user_id" json nil))
-         (comment (a:ensure-gethash "comment" json nil))
-         (flag (a:ensure-gethash "flag" json nil)))
+  (let* ((request-type (gethash "request_type" json))
+         (sub-type (gethash "sub_type" json))
+         (group-id (gethash "group_id" json))
+         (user-id (gethash "user_id" json))
+         (comment (gethash "comment" json))
+         (flag (gethash "flag" json)))
     (format t "~A ~A~%" request-type sub-type)
     (if (string= request-type "friend")
         (respond/do-friend-request user-id comment flag)
         (if (string= request-type "group")
-            (a:switch (sub-type :test #'equal)
+            (str:string-case sub-type
               ("add" (respond/do-group-add-request group-id user-id comment flag))
               ("invite" (respond/do-group-invite-request group-id user-id comment flag)))))))
 

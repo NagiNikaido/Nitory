@@ -72,7 +72,7 @@
   (v:info :napcat "received data: ~A" data)
   (let* ((json (yason:parse data))
          (event-type (gethash "post_type" json)))
-    (a:switch (event-type :test #'equal)
+    (str:string-case event-type
       ("message" (receive-message napcat-instance json))
       ("notice" (receive-notice napcat-instance json))
       ("request" (receive-request napcat-instance json))
@@ -83,14 +83,14 @@
 
 (defmethod receive-message ((napcat-instance napcat) json)
   (let ((message-type (gethash "message_type" json)))
-    (a:switch (message-type :test #'equal)
+    (str:string-case message-type
       ("group" (emit ":message.group" napcat-instance json))
       ("private" (emit ":message.private" napcat-instance json))
       (otherwise (v:error :napcat "Unsupported message type: ~a." message-type)))))
 
 (defmethod receive-notice ((napcat-instance napcat) json)
   (let ((notice-type (gethash "notice_type" json)))
-    (a:switch (notice-type :test #'equal)
+    (str:string-case notice-type
       ("group_upload" (emit ":notice.group_upload" napcat-instance json))
       ("group_admin" (emit ":notice.group_admin" napcat-instance json))
       ("group_decrease" (emit ":notice.group_decrease" napcat-instance json))
@@ -100,7 +100,7 @@
       ("friend_add" (emit ":notice.friend_add" napcat-instance json))
       ("friend_recall" (emit "notice.friend_recall" napcat-instance json))
       ("notify" (let ((sub-type (gethash "sub_type" json)))
-                  (a:switch (sub-type :test #'equal)
+                  (str:string-case sub-type
                     ("poke" (emit ":notice.notify.poke" napcat-instance json))
                     ("lucky_king" (emit ":notice.notify.lucky_king" napcat-instance json))
                     ("honor" (emit ":notice.notify.honor" napcat-instance json))
@@ -109,10 +109,10 @@
 
 (defmethod receive-request ((napcat-instance napcat) json)
   (let ((request-type (gethash "request_type" json)))
-    (a:switch (request-type :test #'equal)
+    (str:string-case request-type
       ("friend" (emit ":request.friend" napcat-instance json))
       ("group" (let ((sub-type (gethash "sub_type" json)))
-                 (a:switch (sub-type :test #'equal)
+                 (str:string-case sub-type
                    ("add" (emit ":request.group.add" napcat-instance json))
                    ("invite" (emit ":request.group.invite" napcat-instance json))
                    (otherwise (v:error :napcat "Unsupported request.group type: ~a." sub-type)))))
@@ -120,10 +120,10 @@
 
 (defmethod receive-meta-event ((napcat-instance napcat) json)
   (let ((meta-event-type (gethash "meta_event_type" json)))
-    (a:switch (meta-event-type :test #'equal)
+    (str:string-case meta-event-type
       ("heartbeat" (emit ":meta_event.heartbeat" napcat-instance json))
       ("lifecycle" (let ((sub-type (gethash "sub_type" json)))
-                     (a:switch (sub-type :test #'equal)
+                     (str:string-case sub-type
                        ("enable" (emit ":meta_event.enable" napcat-instance json))
                        ("disable" (emit ":meta_event.disable" napcat-instance json))
                        ("connect" (emit ":meta_event.connect" napcat-instance json))
@@ -135,13 +135,13 @@
     (emit echo napcat-instance json)))
 
 (defmethod cur-packet-id ((napcat-instance napcat))
-  (format nil ":x~8,'0x" (total-packets napcat-instance)))
+  (s:fmt ":x~8,'0x" (total-packets napcat-instance)))
 
 (defmethod gen-packet-id ((napcat-instance napcat))
   (declare (inline gen-packet-id))
   (let ((serial (mod (1+ (total-packets napcat-instance)) +max-packet-count+)))
     (setf (total-packets napcat-instance) serial)
-    (format nil ":x~8,'0x" serial)))
+    (s:fmt ":x~8,'0x" serial)))
 
 (defmethod send-data ((napcat-instance napcat) action params)
   (let* ((serial (gen-packet-id napcat-instance))
@@ -176,7 +176,7 @@
 
 (macrolet ((%apis (&rest api-list)
              (flet ((%append-api (api param-model)
-                      (let ((sym (to-sym (concat "do-" api))))
+                      (let ((sym (to-sym (str:concat "do-" api))))
                         `(progn
                            (defmethod ,sym ((napcat-instance napcat) params)
                              (assert (alist-p params ,param-model))

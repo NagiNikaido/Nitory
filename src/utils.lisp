@@ -32,18 +32,6 @@
 (defvar *prefix* "/opt/nitory/")
 (defvar *self-id* nil)
 
-
-(defun join (str list)
-  (declare (inline join))
-  (case (length list)
-    (0 "")
-    (1 (first list))
-    (otherwise (reduce (lambda (x y) (concat x str y)) list))))
-
-(defun concat (&rest strings)
-  (declare (inline concat))
-  (apply #'concatenate 'string strings))
-
 (defun to-string (string-or-sym)
   (typecase string-or-sym
     (string string-or-sym)
@@ -73,9 +61,8 @@
   "Translating keysym NAME into json keys. Noticing that cl-json gives us (symbol-name keysym)
 which strips ||, we have to determine whether to convert name into underline style or just to
 preserve the current style by checking if all characters of NAME are uppercase."
-  (if (every (lambda (x) (or (upper-case-p x)
-                             (not (alpha-char-p x)))) name)
-      (string-downcase (substitute #\_ #\- name))
+  (if (str:upcasep name)
+      (str:downcase (substitute #\_ #\- name))
       name))
 
 (setf json:*lisp-identifier-name-to-json* #'keysym-name-to-json)

@@ -79,7 +79,7 @@
             (bb:alet ((response (do-send-group-msg *napcat-websocket-client*
                                   `((:group-id . ,group-id)
                                     (:message . #(((:type . "image")
-                                                   (:data . ((:file . ,(concat "file://" entry))
+                                                   (:data . ((:file . ,(str:concat "file://" entry))
                                                              (:sub-type . 1))))))))))
                      (let ((msg-id (gethash "message_id" response)))
                        (v:info :khst "Saving history line ~a:(~a ~a)" msg-id raw-msg entry)
@@ -121,7 +121,7 @@
                      (string= "-rf" (second args))) ; It's an easter egg!
                 (progn
                   (do-send-msg *napcat-websocket-client*
-                    (list (a:switch (msg-type :test #'equal)
+                    (list (str:string-case msg-type
                             ("group" `(:group-id . ,group-id))
                             ("private" `(:user-id . ,user-id)))
                           `(:message-type . ,msg-type)
@@ -143,7 +143,7 @@
                                (v:info :khst "removed ~a from ~a:~a" entry keyword entries))
                         (setf res (format nil "* 该图片已不在关键词\"~a\"的条目中。是否已被删除？" keyword))))))))
     (do-send-msg *napcat-websocket-client*
-        (list (a:switch (msg-type :test #'equal)
+        (list (str:string-case msg-type
                 ("group" `(:group-id . ,group-id))
                 ("private" `(:user-id . ,user-id)))
               `(:message-type . ,msg-type)
@@ -201,7 +201,7 @@
                       :name "khst timeout daemon"))))))
     (when res
       (do-send-msg *napcat-websocket-client*
-        (list (a:switch (msg-type :test #'equal)
+        (list (str:string-case msg-type
                 ("group" `(:group-id . ,group-id))
                 ("private" `(:user-id . ,user-id)))
               `(:message-type . ,msg-type)
