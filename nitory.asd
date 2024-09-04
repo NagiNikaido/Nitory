@@ -69,6 +69,8 @@
                "cl-json"
                "cl-ppcre"
                "rove"
+               "serapeum"
+               "str"
                "verbose")
   :components
   ((:module "test"

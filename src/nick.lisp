@@ -63,10 +63,10 @@
 		(cond
 		  ((= 1 arg-len) (progn
 				   (nick/rm-nick user-id)
-				   (format nil "* 恢复 ~a 的默认昵称" default-nick)))
+				   (s:fmt "* 恢复 ~a 的默认昵称" default-nick)))
 		  ((= 2 arg-len) (progn
 				   (nick/set-nick user-id current-nick)
-				   (format nil "* ~a 现在的昵称为 ~a" default-nick current-nick)))
+				   (s:fmt "* ~a 现在的昵称为 ~a" default-nick current-nick)))
 		  (t "指令格式错误")))))
     (do-send-msg *napcat-websocket-client*
       (list (str:string-case msg-type

@@ -45,7 +45,7 @@
             ("error" :error)
             ("severe" :severe)
             ("fatal" :fatal)
-            (otherwise (error (format nil "Unsupported loglevel ~A." level-string)))))))
+            (otherwise (error (s:fmt "Unsupported loglevel ~A." level-string)))))))
 
 (defparameter *option-version*
   (adopt:make-option
@@ -191,7 +191,7 @@
               (t (nitory/cmd-not-supported json args)))))))))
 
 (defun nitory/print-help (rest)
-  (format nil
+  (s:fmt
 "Project-Nitory v~a by NagiNikaido
 启动于 ~a
 指令列表:

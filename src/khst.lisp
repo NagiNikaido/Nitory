@@ -139,9 +139,9 @@
                     (if (find entry entries :test #'equal)
                         (progn (setf (gethash keyword *khst-lists*)
                                      (remove entry entries))
-                               (setf res (format nil "* 已从关键词\"~a\"的条目中删除了该图片" keyword))
+                               (setf res (s:fmt "* 已从关键词\"~a\"的条目中删除了该图片" keyword))
                                (v:info :khst "removed ~a from ~a:~a" entry keyword entries))
-                        (setf res (format nil "* 该图片已不在关键词\"~a\"的条目中。是否已被删除？" keyword))))))))
+                        (setf res (s:fmt "* 该图片已不在关键词\"~a\"的条目中。是否已被删除？" keyword))))))))
     (do-send-msg *napcat-websocket-client*
         (list (str:string-case msg-type
                 ("group" `(:group-id . ,group-id))
@@ -163,7 +163,7 @@
             (let ((keyword (elt args 1)))
               (if (or (char= #\/ (char keyword 0))
                       (char= #\. (char keyword 0)))
-                  (setf res (format nil "关键词不可以~a开头" (char keyword 0)))
+                  (setf res (s:fmt "关键词不可以~a开头" (char keyword 0)))
                    (let* ((sema (bt2:make-semaphore))
                           (cb (lambda (njson)
                                 (let ((ngroup-id (gethash "group_id" njson))
@@ -189,7 +189,7 @@
                                            (:data . ((:text . "* 等待添加图片中"))))))))
                         (on :message.group *napcat-websocket-client* cb)
                         (let ((res (if (bt2:wait-on-semaphore sema :timeout 30)
-                                       (format nil "* 已收录~a~d" keyword
+                                       (s:fmt "* 已收录~a~d" keyword
                                                (length (gethash keyword *khst-lists*)))
                                        "* 已超时，取消收录")))
                           (do-send-group-msg *napcat-websocket-client*

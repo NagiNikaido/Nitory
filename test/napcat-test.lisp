@@ -79,4 +79,4 @@
                   (format t "message_id=~a" (gethash "message_id" json))))
                (t (json)
                   (v:info :promise "~a" json)))        
-           (format nil "message_id=123"))))))
+           (s:fmt "message_id=123"))))))

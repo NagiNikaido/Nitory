@@ -25,6 +25,7 @@
 		    (:re :cl-ppcre)
                     (:json :cl-json)
                     (:bb :blackbird)
+                    (:s :serapeum)
                     (:v :org.shirakumo.verbose))
   (:import-from #:nitory)
   (:export

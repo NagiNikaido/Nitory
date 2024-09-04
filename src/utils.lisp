@@ -36,13 +36,13 @@
   (typecase string-or-sym
     (string string-or-sym)
     (symbol (write-to-string string-or-sym))
-    (t (error (format nil "~a is no STRING nor SYMBOL!" string-or-sym)))))
+    (t (error (s:fmt "~a is no STRING nor SYMBOL!" string-or-sym)))))
 
 (defun to-sym (string-or-sym)
   (typecase string-or-sym
     (string (read-from-string (substitute #\- #\_ string-or-sym)))
     (symbol string-or-sym)
-    (t (error (format nil "~a is no STRING nor SYMBOL!" string-or-sym)))))
+    (t (error (s:fmt "~a is no STRING nor SYMBOL!" string-or-sym)))))
 
 (defun strip-optional (keysym)
   "Strip the trilling ? if keysym is an optional key."
@@ -70,5 +70,5 @@ preserve the current style by checking if all characters of NAME are uppercase."
 (defun current-decoded-timestamp ()
   (multiple-value-bind (second minute hour day month year _1 _2 tz)
       (get-decoded-time)
-    (format nil "~d/~2,'0d/~2,'0d ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
+    (s:fmt "~d/~2,'0d/~2,'0d ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
             year month day hour minute second (- tz))))

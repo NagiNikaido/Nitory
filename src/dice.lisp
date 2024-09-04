@@ -137,11 +137,10 @@
                     :+ :-) ,res1 ,res2) ,(+ pos1 1 pos2)))))))
 
 (defun dice/parse-dice-expr-init (expr)
-  (let ((rp (dice/parse-dice-expr
-             (if (= 0 (length expr))
-                 "d"
-                 expr))))
-    rp))
+  (dice/parse-dice-expr
+   (if (= 0 (length expr))
+       "d"
+       expr)))
 
 (defun dice/parse-dice-full-expr (expr)
   (multiple-value-bind (match regs)
@@ -153,15 +152,14 @@
 
 (defun dice/generate-dices (&key (dice 1) (face 20) (high nil) (low nil) &allow-other-keys)
   (flet ((dice-pretty-concat (list kth)
-           (str:concat "{"
-                       (str:join ","
-                                 (loop for d in list
-                                       for i = 1 then (incf i)
-                                       collect (s:fmt "~a~d~a"
-                                                      (if (= i 1) "[" "")
-                                                      d
-                                                      (if (= i kth) "]" ""))))
-                       "}")))
+           (s:fmt "{~a}"
+                  (str:join ","
+                            (loop for d in list
+                                  for i = 1 then (incf i)
+                                  collect (s:fmt "~a~d~a"
+                                                 (if (= i 1) "[" "")
+                                                 d
+                                                 (if (= i kth) "]" "")))))))
     (let ((rolled (loop repeat dice collect (+ 1 (random face)))))
       (if high
           (let ((sorted (sort rolled #'>)))
@@ -171,9 +169,7 @@
               (let ((sorted (sort rolled #'<)))
                 `(,(dice-pretty-concat sorted low)
                   ,(reduce #'+ (subseq sorted 0 low))))
-              `(,(str:concat "{"
-                             (str:join "," (mapcar #'write-to-string rolled))
-                             "}")
+              `(,(s:fmt "{~a}" (str:join "," (mapcar #'write-to-string rolled)))
                 ,(reduce #'+ rolled)))))))
 
 (defun dice/exec-dice-tree (tree)
@@ -189,7 +185,7 @@
       (:* (binary-op '*))
       (:/ (binary-op '/))
       (:braket (let ((f (dice/exec-dice-tree (cadr tree))))
-                 `(,(str:concat "(" (car f) ")")
+                 `(,(s:fmt "(~a)" (car f))
                    ,(cadr f))))
       (:roll (apply #'dice/generate-dices (cdr tree)))
       (:const `(,(write-to-string (cadr tree))
@@ -200,38 +196,37 @@
       (otherwise (error "G!")))))
 
 (defun dice/roll-dice (rest &optional sender)
-  (let ((leading (if (= (length rest) 0)
+  (let* ((leading (if (= (length rest) 0)
                      #\d
                      (char rest 0)))
-        (space (position #\space rest)))
-    (let ((expr (handler-case (dice/parse-dice-full-expr
-                               (if space
-                                   (subseq rest 0 space)
-                                   (if (dice/dice-expr-leading-p leading)
-                                       rest
-                                       "")))
-                  (error () (return-from dice/roll-dice "掷骰失败"))))
-          (comment (string-trim
-                    " "
-                    (if space
-                        (subseq rest (+ 1 space))
-                        (if (dice/dice-expr-leading-p leading)
-                            ""
-                            rest)))))
-      (let ((res (handler-case (dice/exec-dice-tree expr)
-                   (error () nil))))
-        (if res
+         (space (position #\space rest))
+         (expr (handler-case (dice/parse-dice-full-expr
+                              (if space
+                                  (subseq rest 0 space)
+                                  (if (dice/dice-expr-leading-p leading)
+                                      rest
+                                      "")))
+                 (error () (return-from dice/roll-dice "掷骰失败"))))
+         (comment (str:trim
+                   (if space
+                       (subseq rest (+ 1 space))
+                       (if (dice/dice-expr-leading-p leading)
+                           ""
+                           rest))))
+         (res (handler-case (dice/exec-dice-tree expr)
+                (error () nil))))
+        (if (not res)
+            "掷骰失败"
             (str:join #\newline
                       `(,(str:concat (if sender
                                          (or (nick/get-nick (gethash "user_id" sender))
                                              (a:ensure-gethash "nickname" sender ""))
                                          "") " 掷骰 " (caar res)
-                                         (if (string/= comment "") (str:concat " (" comment ")")) ":")
+                                         (if (string/= comment "") (s:fmt " (~a)" comment)) ":")
                         ,@(loop for a in (cadr res)
                                 collect (str:join "=" `(,(cadar res)
                                                         ,(car a)
-                                                        ,(write-to-string (cadr a)))))))
-            "掷骰失败")))))
+                                                        ,(write-to-string (cadr a))))))))))
 
 (defun dice/cmd-roll (json args)
   (multiple-value-bind (match arguments)
@@ -251,7 +246,7 @@
                                (cdr args))))
            (msg (dice/roll-dice rest sender)))
       (do-send-msg *napcat-websocket-client*
-        (list (a:switch (msg-type :test #'equal)
+        (list (str:string-case msg-type
                 ("group" `(:group-id . ,group-id))
                 ("private" `(:user-id . ,user-id)))
               `(:message-type . ,msg-type)
