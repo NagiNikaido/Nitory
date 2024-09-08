@@ -22,7 +22,7 @@
 
 ;; managed by version bumper
 (defparameter +version+ "0.0.6")
-(setf *random-state* (make-random-state))
+(setf *random-state* (make-random-state t))
 (setf re:*allow-named-registers* t)
 (setf v:*process-locally* t)
 
