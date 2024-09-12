@@ -174,11 +174,10 @@
 
 (defun dice/exec-dice-tree (tree)
   (flet ((binary-op (op)
-           `,(let ((f (dice/exec-dice-tree (cadr tree)))
-                   (g (dice/exec-dice-tree (caddr tree))))
-               `,(mapcar #'eval
-                         `((str:concat ,(car f) ,(symbol-name op) ,(car g))
-                           (,op ,(cadr f) ,(cadr g)))))))
+           (let ((f (dice/exec-dice-tree (cadr tree)))
+                 (g (dice/exec-dice-tree (caddr tree))))
+             `(,(str:concat (car f) (symbol-name op) (car g))
+               ,(eval `(,op ,(cadr f) ,(cadr g)))))))
     (case (car tree)
       (:+ (binary-op '+))
       (:- (binary-op '-))
