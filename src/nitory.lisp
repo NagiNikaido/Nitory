@@ -203,7 +203,7 @@
 .khst: 看话说图
 .rm: 删除看话说图条目
 .help: 显示本帮助
-更多功能开发中" +version+ (current-decoded-timestamp)))
+更多功能开发中" +version+ *startup-timestamp*))
 
 (defun nitory/cmd-help (json args &key &allow-other-keys)
   (let* ((msg-type (gethash "message_type" json))
