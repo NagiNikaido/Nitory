@@ -73,5 +73,4 @@
 	      ("group" `(:group-id . ,group-id))
 	      ("private" `(:user-id . ,user-id)))
 	    `(:message-type . ,msg-type)
-	    `(:message . #(((:type . "text")
-			    (:data . ((:text . ,msg))))))))))
+            (make-message msg)))))

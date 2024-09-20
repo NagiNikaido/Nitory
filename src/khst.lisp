@@ -78,9 +78,8 @@
             (v:info :khst "Found ~a for keyword \"~a\"" entry raw-msg)
             (bb:alet ((response (do-send-group-msg *napcat-websocket-client*
                                   `((:group-id . ,group-id)
-                                    (:message . #(((:type . "image")
-                                                   (:data . ((:file . ,(str:concat "file://" entry))
-                                                             (:sub-type . 1))))))))))
+                                    ,(make-message `(:image ,(str:concat "file://" entry)
+                                                     :sub-type 1))))))
                      (let ((msg-id (gethash "message_id" response)))
                        (v:info :khst "Saving history line ~a:(~a ~a)" msg-id raw-msg entry)
                        (setf (gethash msg-id *khst-history*)
@@ -125,9 +124,8 @@
                             ("group" `(:group-id . ,group-id))
                             ("private" `(:user-id . ,user-id)))
                           `(:message-type . ,msg-type)
-                          `(:message . #(((:type . "image")
-                                          (:data . ((:file . ,*khst-are-you-sure*)
-                                                    (:sub-type . 1))))))))
+                          (make-message `(:image ,*khst-are-you-sure*
+                                          :sub-type 1))))
                   (return-from khst/cmd-remove))
                 (setf res "格式错误"))
             (let ((history-line (gethash reply *khst-history*)))
@@ -147,8 +145,7 @@
                 ("group" `(:group-id . ,group-id))
                 ("private" `(:user-id . ,user-id)))
               `(:message-type . ,msg-type)
-              `(:message . #(((:type . "text")
-                              (:data . ((:text . ,res))))))))))
+              (make-message res)))))
 
 (defun khst/cmd-khst (json args &key &allow-other-keys)
   (let* ((msg-type (gethash "message_type" json))
@@ -174,8 +171,7 @@
                                             (string/= "image" (gethash "type" (first nmsg))))
                                         (do-send-group-msg *napcat-websocket-client*
                                           `((:group-id . ,group-id)
-                                            (:message . #(((:type . "text")
-                                                           (:data . ((:text . "* 并非图片"))))))))
+                                            ,(make-message "* 并非图片")))
                                         (let ((file (gethash "file" (gethash "data" (first nmsg))))
                                               (uri (gethash "url" (gethash "data" (first nmsg)))))
                                           (khst/save-remote-and-add-to-list keyword file uri)
@@ -185,8 +181,7 @@
                         (v:debug :khst "in thread ~a" (bt2:current-thread))
                         (do-send-group-msg *napcat-websocket-client*
                           `((:group-id . ,group-id)
-                            (:message . #(((:type . "text")
-                                           (:data . ((:text . "* 等待添加图片中"))))))))
+                            ,(make-message "* 等待添加图片中")))
                         (on :message.group *napcat-websocket-client* cb)
                         (let ((res (if (bt2:wait-on-semaphore sema :timeout 30)
                                        (s:fmt "* 已收录~a~d" keyword
@@ -194,8 +189,7 @@
                                        "* 已超时，取消收录")))
                           (do-send-group-msg *napcat-websocket-client*
                             `((:group-id . ,group-id)
-                              (:message . #(((:type . "text")
-                                             (:data . ((:text . ,res)))))))))
+                              ,(make-message res))))
                         (v:debug :khst "removing cb ~a" cb)
                         (remove-listener *napcat-websocket-client* :message.group cb))
                       :name "khst timeout daemon"))))))
@@ -205,5 +199,4 @@
                 ("group" `(:group-id . ,group-id))
                 ("private" `(:user-id . ,user-id)))
               `(:message-type . ,msg-type)
-              `(:message . #(((:type . "text")
-                              (:data . ((:text . ,res)))))))))))
+              `(make-message res))))))

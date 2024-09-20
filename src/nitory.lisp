@@ -215,8 +215,7 @@
 	      ("group" `(:group-id . ,group-id))
 	      ("private" `(:user-id . ,user-id)))
 	    `(:message-type . ,msg-type)
-	    `(:message . #(((:type . "text")
-			    (:data . ((:text . ,msg))))))))))
+            (make-message msg)))))
 
 (defun nitory/cmd-not-supported (json args &key &allow-other-keys)
   (let* ((msg-type (gethash "message_type" json))

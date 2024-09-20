@@ -35,21 +35,77 @@
                (return)))
         finally (return t)))
 
+(defun eliminate-nil (alist)
+  (loop for x in alist
+        if x collect x))
+
 (defun segment-p (seg)
-  (or (alist-p seg '((:type . "text")
-                     (:data . ((:text . string)))))
-      (alist-p seg `((:type . "image")
-                     (:data . ((:file . string)
-                               (:thumb? . string)
-                               (:name? . string)
-                               (:url? . string)
-                               (:summary? . string)
-                               (:sub-type . ,(lambda (x) (or (= x 0) (= x 1))))))))
-      (alist-p seg '((:type . "at")
-                     (:data . ((:qq . number)
-                               (:name? . string)))))
-      (alist-p seg '((:type . "reply")
-                     (:data . ((:id . string)))))))
+  (or (text-segment-p seg)
+      (image-segment-p seg)
+      (at-segment-p seg)
+      (reply-segment-p seg)))
+
+(defun make-text-segment (text)
+  `((:type . "text")
+    (:data . ((:text . ,text)))))
+
+(defun text-segment-p (seg)
+  (alist-p seg '((:type . "text")
+                 (:data . ((:text . string))))))
+
+(defun make-image-segment (file &key thumb name url summary sub-type)
+  `((:type . "image")
+    (:data . ,(eliminate-nil
+               `((:file . ,file)
+                 ,(if thumb `(:thumb . ,thumb) nil)
+                 ,(if name `(:name . ,name) nil)
+                 ,(if url `(:url . ,url) nil)
+                 ,(if summary `(:summary . ,summary) nil)
+                 ,(if sub-type `(:sub-type . ,sub-type) nil))))))
+
+(defun image-segment-p (seg)
+  (alist-p seg `((:type . "image")
+                 (:data . ((:file . string)
+                           (:thumb? . string)
+                           (:name? . string)
+                           (:url? . string)
+                           (:summary? . string)
+                           (:sub-type? . ,(lambda (x) (or (= x 0) (= x 1)))))))))
+
+(defun make-at-segment (qq &key name)
+  `((:type . "at")
+    (:data . ,(eliminate-nil
+               `((:qq . ,qq)
+                 ,(if name `(:name . ,name) nil))))))
+
+(defun at-segment-p (seg)
+  (alist-p seg '((:type . "at")
+                 (:data . ((:qq . number)
+                           (:name? . string))))))
+
+(defun make-reply-segment (id)
+  `((:type . "reply")
+    (:data . ((:id . ,id)))))
+
+(defun reply-segment-p (seg)
+  (alist-p seg '((:type . "reply")
+                 (:data . ((:id . string))))))
+
+(defun make-segment (key &rest rest)
+  (if (typep key 'string)
+      (make-text-segment key)
+      (case key
+        (:text (apply #'make-text-segment rest))
+        (:image (apply #'make-image-segment rest))
+        (:at (apply #'make-at-segment rest))
+        (:reply (apply #'make-reply-segment rest))
+        (otherwise (error "Unsupported message segment type!")))))
+
+(defun make-message (&rest rest)
+  `(:message . #(,@(loop for seg in rest
+                         collect (if (atom seg)
+                                     (make-segment seg)
+                                     (apply #'make-segment seg))))))
 
 (defun message-p (msg)
   (or (stringp msg)
@@ -57,3 +113,6 @@
 
 (deftype message ()
   `(satisfies message-p))
+
+(deftype segment ()
+  `(satisfies segment-p))
