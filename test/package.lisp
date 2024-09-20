@@ -23,7 +23,6 @@
         #:rove)
   (:local-nicknames (:a :alexandria)
 		    (:re :cl-ppcre)
-                    (:json :cl-json)
                     (:bb :blackbird)
                     (:s :serapeum)
                     (:v :org.shirakumo.verbose))

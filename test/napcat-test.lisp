@@ -43,13 +43,13 @@
 (deftest receive-events
   (ok (outputs
           (nitory:receive-data *test-client*
-                               (json:encode-json-alist-to-string
+                               (nitory:encode-to-json-string
                                 '((:post-type . "message")
                                   (:message-type . "group"))))
           "message.group"))
   (ok (outputs
           (nitory:receive-data *test-client*
-                               (json:encode-json-alist-to-string
+                               (nitory:encode-to-json-string
                                 '((:post-type . "meta_event")
                                   (:meta-event-type . "heartbeat"))))
           "meta-event.heartbeat")))
@@ -65,7 +65,7 @@
            (serial (nitory:cur-packet-id *test-client*)))
       (v:info :out "~a" sent)
       (nitory:receive-data *test-client*
-                           (json:encode-json-alist-to-string
+                           (nitory:encode-to-json-string
                             `((:status . "ok")
                               (:retcode . 0)
                               (:data . ((:message-id . 123)))

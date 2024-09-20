@@ -23,7 +23,7 @@
   (:local-nicknames (:a :alexandria)
                     (:s :serapeum)
                     (:re :cl-ppcre)
-                    (:json :cl-json)
+                    (:j :yason)
                     (:v :org.shirakumo.verbose)
                     (:sig :trivial-signal)
                     (:bb :blackbird)
@@ -36,6 +36,8 @@
    #:dice/parse-dice-full-expr
    #:dice/exec-dice-tree
    #:dice/roll-dice
+   ;; from utils
+   #:encode-to-json-string
    ;; from napcatp-types
    #:alist-p
    #:segment-p

@@ -57,15 +57,27 @@
          (len (length str)))
     (find #\? (reverse str) :end (min 2 len))))
 
-(defun keysym-name-to-json (name)
+(defun keysym-name-to-json (keysym)
   "Translating keysym NAME into json keys. Noticing that cl-json gives us (symbol-name keysym)
 which strips ||, we have to determine whether to convert name into underline style or just to
 preserve the current style by checking if all characters of NAME are uppercase."
-  (if (str:upcasep name)
+  
+  (let ((name (if (symbolp keysym)
+                  (symbol-name keysym)
+                  keysym)))
+   (if (str:upcasep name)
       (str:downcase (substitute #\_ #\- name))
-      name))
+      name)))
 
-(setf json:*lisp-identifier-name-to-json* #'keysym-name-to-json)
+(setf j:*list-encoder* #'j:encode-alist)
+(setf j:*symbol-key-encoder* #'keysym-name-to-json)
+
+(defun encode-to-json-string (alist-or-dict)
+  "Wrapping yason:encode with a string buffer. Therefore, we no more need the old cl-json
+library ...?"
+  (with-output-to-string (string-buffer)
+    (j:encode alist-or-dict string-buffer)
+    string-buffer))
 
 (defun current-decoded-timestamp ()
   (multiple-value-bind (second minute hour day month year _1 _2 tz)

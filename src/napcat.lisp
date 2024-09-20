@@ -70,7 +70,7 @@
 
 (defmethod receive-data ((napcat-instance napcat) data)
   (v:info :napcat "received data: ~A" data)
-  (let* ((json (yason:parse data))
+  (let* ((json (j:parse data))
          (event-type (gethash "post_type" json)))
     (str:string-case event-type
       ("message" (receive-message napcat-instance json))
@@ -145,9 +145,9 @@
 
 (defmethod send-data ((napcat-instance napcat) action params)
   (let* ((serial (gen-packet-id napcat-instance))
-         (data (json:encode-json-alist-to-string `((:action . ,action)
-                                                   (:params . ,params)
-                                                   (:echo . ,serial)))))
+         (data (encode-to-json-string `((:action . ,action)
+                                        (:params . ,params)
+                                        (:echo . ,serial)))))
     (v:info :napcat "Sending data: ~a" data)
     (bb:with-promise (resolve reject)
       (once serial napcat-instance
@@ -160,18 +160,18 @@
         ((dry-run napcat-instance) data)
         ((not (client napcat-instance))
          (receive-data napcat-instance
-                       (json:encode-json-alist-to-string `((:status . "failed")
-                                                           (:retcode . -1)
-                                                           (:data . nil)
-                                                           (:message . "Invalid websocket client - maybe not initialized or early disposed?")
-                                                           (:echo . ,serial)))))
+                       (encode-to-json-string `((:status . "failed")
+                                                (:retcode . -1)
+                                                (:data . nil)
+                                                (:message . "Invalid websocket client - maybe not initialized or early disposed?")
+                                                (:echo . ,serial)))))
         ((not (eq :open (wsd:ready-state (client napcat-instance))))
          (receive-data napcat-instance
-                       (json:encode-json-alist-to-string `((:status . "failed")
-                                                           (:retcode . -1)
-                                                           (:data . nil)
-                                                           (:message . "Invalid websocket connection.")
-                                                           (:echo . ,serial)))))
+                       (encode-to-json-string `((:status . "failed")
+                                                (:retcode . -1)
+                                                (:data . nil)
+                                                (:message . "Invalid websocket connection.")
+                                                (:echo . ,serial)))))
         (t (wsd:send-text (client napcat-instance) data))))))
 
 (macrolet ((%apis (&rest api-list)
