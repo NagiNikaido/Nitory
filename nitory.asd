@@ -32,6 +32,7 @@
                "bordeaux-threads"
                "cl-ppcre"
                "dexador"
+               "local-time"
                "serapeum"
                "str"
                "trivial-signal"

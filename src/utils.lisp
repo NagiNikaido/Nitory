@@ -27,6 +27,7 @@
 (setf v:*process-locally* t)
 
 (defvar *napcat-websocket-client* nil)
+(defvar *timestring-format* '(:year #\/ (:month 2) #\/ (:day 2) #\  (:hour 2) #\: (:min 2) #\: (:sec 2) " GMT" :gmt-offset))
 (defvar *startup-timestamp* nil)
 (defvar *admin* nil)
 (defvar *prefix* "/opt/nitory/")
@@ -80,7 +81,4 @@ library ...?"
     string-buffer))
 
 (defun current-decoded-timestamp ()
-  (multiple-value-bind (second minute hour day month year _1 _2 tz)
-      (get-decoded-time)
-    (s:fmt "~d/~2,'0d/~2,'0d ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
-            year month day hour minute second (- tz))))
+  (local-time:format-timestring nil (local-time:now) :format *timestring-format*))
