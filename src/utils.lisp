@@ -33,18 +33,21 @@
 (defvar *prefix* "/opt/nitory/")
 (defvar *self-id* nil)
 
+(export-always 'to-string)
 (-> to-string ((or string symbol)) string)
 (defun to-string (string-or-sym)
   (typecase string-or-sym
     (string string-or-sym)
     (symbol (write-to-string string-or-sym))))
 
+(export-always 'to-sym)
 (-> to-sym ((or string symbol)) symbol)
 (defun to-sym (string-or-sym)
   (typecase string-or-sym
     (string (read-from-string (substitute #\- #\_ string-or-sym)))
     (symbol string-or-sym)))
 
+(export-always 'strip-optional)
 (-> strip-optional ((or string symbol)) symbol)
 (defun strip-optional (keysym)
   "Strip the trilling ? if keysym is an optional key."
@@ -53,10 +56,12 @@
        (remove #\? (to-string keysym) :from-end t :count 1))
       keysym))
 
+(export-always 'bool-value)
 (-> bool-value (t) boolean)
 (defun bool-value (x)
   (not (null x)))
 
+(export-always 'optional-p)
 (-> optional-p ((or string symbol)) boolean)
 (defun optional-p (keysym)
   "Check whether KEYSYM is an optional key. It should be either end with ? or ?|."
@@ -64,6 +69,7 @@
          (len (length str)))
     (bool-value (find #\? (reverse str) :end (min 2 len)))))
 
+(export-always 'keysym-name-to-json)
 (-> keysym-name-to-json ((or string symbol)) string)
 (defun keysym-name-to-json (keysym)
   "Translating keysym NAME into json keys. Noticing that cl-json gives us (symbol-name keysym)
@@ -79,6 +85,8 @@ preserve the current style by checking if all characters of NAME are uppercase."
 (setf j:*list-encoder* #'j:encode-alist)
 (setf j:*symbol-key-encoder* #'keysym-name-to-json)
 
+(export-always 'encode-to-json-string)
+(-> encode-to-json-string ((or alist hash-table)) string)
 (defun encode-to-json-string (alist-or-dict)
   "Wrapping yason:encode with a string buffer. Therefore, we no more need the old cl-json
 library ...?"
@@ -86,5 +94,6 @@ library ...?"
     (j:encode alist-or-dict string-buffer)
     string-buffer))
 
+(-> current-decoded-timestamp () string)
 (defun current-decoded-timestamp ()
   (local-time:format-timestring nil (local-time:now) :format *timestring-format*))

@@ -22,6 +22,7 @@
 
 (defconstant +max-packet-count+ #x100000000)
 
+(export-always 'napcat)
 (defclass napcat (event-bus)
   ((url
     :initarg :url
@@ -37,6 +38,7 @@
     :initform nil
     :accessor dry-run)))
 
+(export-always 'make-napcat)
 (defun make-napcat (&key url address port dry-run)
   (v:info :napcat "Making NapCat.")
   (make-instance 'napcat :url (or url
@@ -48,6 +50,7 @@
 (defmethod initialize-instance :after ((napcat-instance napcat) &key url)
   (setf (client napcat-instance) (wsd:make-client url)))
 
+(export-always 'connect)
 (defmethod connect ((napcat-instance napcat))
   (v:info :napcat "Connect websocket at ~a" (url napcat-instance))
   (let ((client (client napcat-instance)))
@@ -68,28 +71,31 @@
       (handler-case (wsd:start-connection client)
         (error (e) (emit ":socket.error" napcat-instance e))))))
 
+(export-always 'receive-data)
 (defmethod receive-data ((napcat-instance napcat) data)
   (v:info :napcat "received data: ~A" data)
   (let* ((json (j:parse data))
-         (event-type (gethash "post_type" json)))
+         (event-type (@ json "post_type")))
     (str:string-case event-type
       ("message" (receive-message napcat-instance json))
       ("notice" (receive-notice napcat-instance json))
       ("request" (receive-request napcat-instance json))
       ("meta_event" (receive-meta-event napcat-instance json))
-      (otherwise (if (gethash "echo" json)
+      (otherwise (if (@ json "echo")
                    (receive-response napcat-instance json)
                    (v:error :napcat "Unsupported event type: ~a." event-type))))))
 
+(export-always 'receive-message)
 (defmethod receive-message ((napcat-instance napcat) json)
-  (let ((message-type (gethash "message_type" json)))
+  (let ((message-type (@ json "message_type")))
     (str:string-case message-type
       ("group" (emit ":message.group" napcat-instance json))
       ("private" (emit ":message.private" napcat-instance json))
       (otherwise (v:error :napcat "Unsupported message type: ~a." message-type)))))
 
+(export-always 'receive-notice)
 (defmethod receive-notice ((napcat-instance napcat) json)
-  (let ((notice-type (gethash "notice_type" json)))
+  (let ((notice-type (@ json "notice_type")))
     (str:string-case notice-type
       ("group_upload" (emit ":notice.group_upload" napcat-instance json))
       ("group_admin" (emit ":notice.group_admin" napcat-instance json))
@@ -99,7 +105,7 @@
       ("group_recall" (emit ":notice.group_recall" napcat-instance json))
       ("friend_add" (emit ":notice.friend_add" napcat-instance json))
       ("friend_recall" (emit "notice.friend_recall" napcat-instance json))
-      ("notify" (let ((sub-type (gethash "sub_type" json)))
+      ("notify" (let ((sub-type (@ json "sub_type")))
                   (str:string-case sub-type
                     ("poke" (emit ":notice.notify.poke" napcat-instance json))
                     ("lucky_king" (emit ":notice.notify.lucky_king" napcat-instance json))
@@ -107,22 +113,24 @@
                     (otherwise (v:error :napcat "Unsupported notice.notify type: ~a." sub-type)))))
       (otherwise (v:error :napcat "Unsupported notice type: ~a." notice-type)))))
 
+(export-always 'receive-request)
 (defmethod receive-request ((napcat-instance napcat) json)
-  (let ((request-type (gethash "request_type" json)))
+  (let ((request-type (@ json "request_type")))
     (str:string-case request-type
       ("friend" (emit ":request.friend" napcat-instance json))
-      ("group" (let ((sub-type (gethash "sub_type" json)))
+      ("group" (let ((sub-type (@ json "sub_type")))
                  (str:string-case sub-type
                    ("add" (emit ":request.group.add" napcat-instance json))
                    ("invite" (emit ":request.group.invite" napcat-instance json))
                    (otherwise (v:error :napcat "Unsupported request.group type: ~a." sub-type)))))
       (otherwise (v:error :napcat "Unsupported request type: ~a." request-type)))))
 
+(export-always 'receive-meta-event)
 (defmethod receive-meta-event ((napcat-instance napcat) json)
-  (let ((meta-event-type (gethash "meta_event_type" json)))
+  (let ((meta-event-type (@ json "meta_event_type")))
     (str:string-case meta-event-type
       ("heartbeat" (emit ":meta_event.heartbeat" napcat-instance json))
-      ("lifecycle" (let ((sub-type (gethash "sub_type" json)))
+      ("lifecycle" (let ((sub-type (@ json "sub_type")))
                      (str:string-case sub-type
                        ("enable" (emit ":meta_event.enable" napcat-instance json))
                        ("disable" (emit ":meta_event.disable" napcat-instance json))
@@ -130,19 +138,23 @@
                        (otherwise (v:error :napcat "Unsupported meta_event.lifecycle type: ~a." sub-type)))))
       (otherwise (v:error :napcat "Unsupported meta_event type: ~a." meta-event-type)))))
 
+(export-always 'receive-response)
 (defmethod receive-response ((napcat-instance napcat) json)
-  (let ((echo (gethash "echo" json)))
+  (let ((echo (@ json "echo")))
     (emit echo napcat-instance json)))
 
+(export-always 'cur-packet-id)
 (defmethod cur-packet-id ((napcat-instance napcat))
   (s:fmt ":x~8,'0x" (total-packets napcat-instance)))
 
+(export-always 'gen-packet-id)
 (defmethod gen-packet-id ((napcat-instance napcat))
   (declare (inline gen-packet-id))
   (let ((serial (mod (1+ (total-packets napcat-instance)) +max-packet-count+)))
     (setf (total-packets napcat-instance) serial)
     (s:fmt ":x~8,'0x" serial)))
 
+(export-always 'send-data)
 (defmethod send-data ((napcat-instance napcat) action params)
   (let* ((serial (gen-packet-id napcat-instance))
          (data (encode-to-json-string `((:action . ,action)
@@ -152,8 +164,8 @@
     (bb:with-promise (resolve reject)
       (once serial napcat-instance
             (lambda (json)
-              (let ((data (gethash "data" json)))
-                (if (= 0 (gethash "retcode" json))
+              (let ((data (@ json "data")))
+                (if (= 0 (@ json "retcode"))
                     (resolve data)
                     (reject json)))))
       (cond
@@ -178,10 +190,10 @@
              (flet ((%append-api (api param-model)
                       (let ((sym (to-sym (str:concat "do-" api))))
                         `(progn
+                           (export-always ',sym)
                            (defmethod ,sym ((napcat-instance napcat) params)
                              (assert (alist-sim-p params ,param-model))
-                             (send-data napcat-instance ,api params))
-                           (export ',sym)))))
+                             (send-data napcat-instance ,api params))))))
                `(block apis ,@(loop for (api param-model) on api-list by #'cddr
                         collect (%append-api api param-model))))))
   
@@ -270,11 +282,12 @@
          ;; from GO-CQHTTP
          ))
 
+(export-always 'reply-to)
 (defmethod reply-to ((napcat-instance napcat) json msg &optional msg-type)
   (let* ((r-msg-type (or (when (string= msg-type "private") "private")
-                         (gethash "message_type" json)))
-         (group-id (gethash "group_id" json))
-         (user-id (gethash "user_id" json)))
+                         (@ json "message_type")))
+         (group-id (@ json "group_id"))
+         (user-id (@ json "user_id")))
   (do-send-msg napcat-instance
     (list (str:string-case r-msg-type
             ("group" `(:group-id . ,group-id))

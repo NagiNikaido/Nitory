@@ -44,18 +44,18 @@
     (v:info :nick "Done.")))
 
 (defun nick/get-nick (user-id)
-  (gethash user-id *nicknames*))
+  (@ *nicknames* user-id))
 
 (defun nick/set-nick (user-id nick)
-  (setf (gethash user-id *nicknames*) nick))
+  (setf (@ *nicknames* user-id) nick))
 
 (defun nick/rm-nick (user-id)
   (remhash user-id *nicknames*))
 
 (defun nick/cmd-set-nick (json args)
-  (let* ((user-id (gethash "user_id" json))
-	 (sender (gethash "sender" json))
-	 (default-nick (gethash "nickname" sender))
+  (let* ((user-id (@ json "user_id"))
+	 (sender (@ json "sender"))
+	 (default-nick (@ sender "nickname"))
 	 (current-nick (second args))
 	 (msg (let ((arg-len (length args)))
 		(cond

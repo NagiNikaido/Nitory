@@ -20,6 +20,7 @@
 
 (in-package #:nitory)
 
+(export-always 'dice/dice-expr-leading-p)
 (defun dice/dice-expr-leading-p (leading)
   (or (dice/dice-expr-legal-leading-p leading)
       (dice/dice-expr-legal-operator-p leading)
@@ -27,6 +28,7 @@
       (char= #\) leading)
       (char= #\# leading)))
 
+(export-always 'dice/dice-expr-legal-leading-p)
 (defun dice/dice-expr-legal-leading-p (leading)
   (or (digit-char-p leading)
       (char= #\d leading)
@@ -34,14 +36,17 @@
       (char= #\l leading)
       (char= #\( leading)))
 
+(export-always 'dice/dice-expr-legal-operator-p)
 (defun dice/dice-expr-legal-operator-p (leading)
   (or (char= #\+ leading)
       (char= #\- leading)))
 
+(export-always 'dice/dice-term-legal-operator-p)
 (defun dice/dice-term-legal-operator-p (leading)
   (or (char= #\* leading)
       (char= #\/ leading)))
 
+(export-always 'dice/dice-expr-op-p)
 (defun dice/dice-expr-op-p (op op-category)
   (case op-category
     (:expr (or (eq op :+)
@@ -58,6 +63,7 @@
                           ,@(cdr (cdaddr tree))) op-category)
       tree))
 
+(export-always 'dice/parse-dice-cell)
 (defun dice/parse-dice-cell (cell)
   (let ((leading (ignore-errors (char cell 0))))
     (assert (and (> (length cell) 0)
@@ -91,6 +97,7 @@
                            ,@(if high `(:high ,high) '())
                            ,@(if low  `(:low ,low) '())) ,(length (elt regs 0))))))))))
 
+(export-always 'dice/parse-dice-term)
 (defun dice/parse-dice-term (term)
   (let* ((rp (dice/parse-dice-term- term))
          (res (car rp))
@@ -114,6 +121,7 @@
             `((,(if (char= #\* op)
                     :* :/) ,res1 ,res2) ,(+ pos1 1 pos2)))))))
 
+(export-always 'dice/parse-dice-expr)
 (defun dice/parse-dice-expr (expr)
   (let* ((rp (dice/parse-dice-expr- expr))
          (res (car rp))
@@ -136,12 +144,14 @@
             `((,(if (char= #\+ op)
                     :+ :-) ,res1 ,res2) ,(+ pos1 1 pos2)))))))
 
+(export-always 'dice/parse-dice-expr-init)
 (defun dice/parse-dice-expr-init (expr)
   (dice/parse-dice-expr
    (if (= 0 (length expr))
        "d"
        expr)))
 
+(export-always 'dice/parse-dice-full-expr)
 (defun dice/parse-dice-full-expr (expr)
   (multiple-value-bind (match regs)
       (re:scan-to-strings "^(?<repeat>\\d+)#" expr)
@@ -150,6 +160,7 @@
            (post (dice/parse-dice-expr-init single-expr)))
       `(:repeat  ,(if regs (parse-integer (elt regs 0)) 1) (,expr ,single-expr) ,(car post)))))
 
+(export-always 'dice/generate-dices)
 (defun dice/generate-dices (&key (dice 1) (face 20) (high nil) (low nil) &allow-other-keys)
   (flet ((dice-pretty-concat (list kth)
            (s:fmt "{~a}"
@@ -172,6 +183,7 @@
               `(,(s:fmt "{~a}" (str:join "," (mapcar #'write-to-string rolled)))
                 ,(reduce #'+ rolled)))))))
 
+(export-always 'dice/exec-dice-tree)
 (defun dice/exec-dice-tree (tree)
   (flet ((binary-op (op)
            (let ((f (dice/exec-dice-tree (cadr tree)))
@@ -194,6 +206,7 @@
                         collect (dice/exec-dice-tree (cadddr tree)))))
       (otherwise (error "G!")))))
 
+(export-always 'dice/roll-dice)
 (defun dice/roll-dice (rest &optional sender)
   (let* ((leading (if (= (length rest) 0)
                      #\d
@@ -218,7 +231,7 @@
             "掷骰失败"
             (str:join #\newline
                       `(,(str:concat (if sender
-                                         (or (nick/get-nick (gethash "user_id" sender))
+                                         (or (nick/get-nick (@ sender "user_id"))
                                              (a:ensure-gethash "nickname" sender ""))
                                          "") " 掷骰 " (caar res)
                                          (if (string/= comment "") (s:fmt " (~a)" comment)) ":")
@@ -227,11 +240,12 @@
                                                         ,(car a)
                                                         ,(write-to-string (cadr a))))))))))
 
+(export-always 'dice/cmd-roll)
 (defun dice/cmd-roll (json args)
   (multiple-value-bind (match arguments)
       (re:scan-to-strings "r(h)?((\\d+)|([+-]\\d+))?" (first args))
     (let* ((msg-type (when (elt arguments 0) "private"))
-           (sender (gethash "sender" json))
+           (sender (@ json "sender"))
            (rest (str:join " "
                            (if (elt arguments 1)
                                (cons (s:fmt "~ad~a"

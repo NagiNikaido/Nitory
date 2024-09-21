@@ -18,92 +18,34 @@
 ;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ;;;
 
-(defpackage #:nitory
-  (:use #:common-lisp)
-  (:local-nicknames (:a :alexandria)
-                    (:s :serapeum)
-                    (:re :cl-ppcre)
-                    (:j :yason)
-                    (:v :org.shirakumo.verbose)
-                    (:sig :trivial-signal)
-                    (:bb :blackbird)
-                    (:dex :dexador))
-  (:import-from :serapeum #:->)
-  (:export
-   #:main
-   #:dice/parse-dice-cell
-   #:dice/parse-dice-term
-   #:dice/parse-dice-expr
-   #:dice/parse-dice-full-expr
-   #:dice/exec-dice-tree
-   #:dice/roll-dice
-   ;; from utils
-   #:encode-to-json-string
-   ;; from napcatp-types
-   #:alist-sim-p
-   #:segment-p
-   #:message-p
-   #:message
-   ;; from napcat
-   #:napcat
-   #:make-napcat
-   #:url
-   #:dry-run
-   #:connect
-   #:on
-   #:once
-   #:emit
-   #:remove-listener
-   #:remove-all-listeners
-   #:listeners
-   #:listener-count
-   #:cur-packet-id
-   #:receive-data
-   #:receive-message
-   #:receive-notice
-   #:receive-request
-   #:receive-meta-event
-   #:receive-response
-   #:send-data
-   #:do-get-friends-with-category
-   #:do-set-group-card
-   #:do-can-send-record
-   #:do-debug
-   #:do-set-group-leave
-   #:do-get-friend-list
-   #:do-set-group-admin
-   #:do-get-group-list
-   #:do-forward-friend-single-msg
-   #:do-set-friend-add-request
-   #:do-set-msg-emoji-like
-   #:do-get-group-file-list
-   #:do-get-rebot-uin-range
-   #:do-get-group-member-list
-   #:do-get-group-member-info
-   #:do-delete-msg
-   #:do-get-status
-   #:do-get-login-info
-   #:do-get-group-info
-   #:do-get-group-file-count
-   #:do-clean-cache
-   #:do-set-group-add-request
-   #:do-set-group-kick
-   #:do-can-send-image
-   #:do-del-group-file-folder
-   #:do-get-version-info
-   #:do-send-group-msg
-   #:do-set-group-whole-ban
-   #:do-del-group-file
-   #:do-set-group-file-folder
-   #:do-get-record
-   #:do-get-image
-   #:do-set-group-ban
-   #:do-send-private-msg
-   #:do-get-cookies
-   #:do-get-file
-   #:do-set-qq-avatar
-   #:do-send-msg
-   #:do-forward-group-single-msg
-   #:do-get-msg
-   #:do-set-group-name
-   #:do-reboot-normal))
+#+sb-package-locks
+(serapeum:eval-always
+  (when (find-package :nitory)
+    (sb-ext:unlock-package :nitory)))
+
+(uiop:define-package :nitory
+  (:use :cl)
+  (:export #:main))
+
+#+sb-package-locks
+(sb-ext:lock-package :nitory)
+
+(in-package :nitory)
+(defvar *imports* '((:serapeum #:-> #:@ #:export-always)))
+(loop for (package . symbols) in *imports*
+      do (import (mapcar (lambda (symbol) (intern (symbol-name symbol) package))
+                         symbols)
+                 :nitory))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (loop for (nickname package) in
+        '((:a :alexandria)
+          (:s :serapeum)
+          (:re :cl-ppcre)
+          (:j :yason)
+          (:v :org.shirakumo.verbose)
+          (:sig :trivial-signal)
+          (:bb :blackbird)
+          (:dex :dexador))
+        do (trivial-package-local-nicknames:add-package-local-nickname nickname package :nitory)))
+

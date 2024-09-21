@@ -20,6 +20,7 @@
 
 (in-package :nitory)
 
+(export-always 'event-bus)
 (defclass event-bus ()
   ((silo :initform (make-hash-table :test 'eq)
 	 :accessor silo)
@@ -35,11 +36,11 @@
   (bt2:with-lock-held ((lock obj))
     (let* ((event (to-sym ev))
            (silo (silo obj))
-           (listeners (gethash event silo)))
+           (listeners (@ silo event)))
       (if listeners
           (progn (vector-push-extend listener listeners)
                  listeners)
-          (setf (gethash event silo)
+          (setf (@ silo event)
                 (make-array 1 :element-type 'listener
                               :adjustable t :fill-pointer 1
                               :initial-contents (list listener)))))))
@@ -49,7 +50,7 @@
     (let ((silo (silo obj)))
       (loop for key being the hash-key
             using (hash-value listeners) of silo do
-            (setf (gethash key silo)
+            (setf (@ silo key)
                   (loop for x across listeners
                         when (not (listener-removed x))
                           collect x into v
@@ -57,19 +58,23 @@
                                                     :adjustable 1 :fill-pointer (length v)
                                                     :initial-contents v))))))))
 
+(export-always 'add-listener)
 (defun add-listener (obj event listener)
   (%add-listener obj event (make-listener listener)))
 
+(export-always 'on)
 (defun on (event obj listener)
   (%add-listener obj event (make-listener listener)))
 
+(export-always 'once)
 (defun once (event obj listener)
   (%add-listener obj event (make-listener listener :once t)))
 
+(export-always 'remove-listener)
 (defun remove-listener (obj event listener &key (start 0))
   (bt2:with-lock-held ((lock obj))
     (let* ((silo (silo obj))
-           (listeners (gethash event silo)))
+           (listeners (@ silo event)))
       (unless listeners
         (return-from remove-listener))
       (let ((pos (position-if (lambda (x) (and (eq listener (listener-function x))
@@ -77,7 +82,7 @@
                                                :start start)))
         (setf (listener-removed (elt listeners pos)) t)))))
 
-
+(export-always 'remove-all-listeners)
 (defun remove-all-listeners (obj &optional event)
   (bt2:with-lock-held ((lock obj))
     (let ((silo (silo obj)))
@@ -86,12 +91,13 @@
             (loop for x across listeners do
                   (setf (listener-removed x) t))))))
 
+(export-always 'listeners)
 (defun listeners (obj event)
   (bt2:with-lock-held ((lock obj))
     (let* ((silo (silo obj))
-           (listeners (gethash event silo)))
+           (listeners (@ silo event)))
       (or listeners
-          (setf (gethash event silo)
+          (setf (@ silo event)
                 (make-array 0 :element-type 'listener
                               :adjustable t :fill-pointer 0))))))
 
@@ -110,7 +116,7 @@
             (when (listener-once (elt listeners indx))
               (setf (listener-removed (elt listeners indx)) t))))
     t))
-
+(export-always 'emit)
 (defun emit (event obj &rest args)
   (bt2:atomic-integer-incf (level obj))
   (let ((res (let ((cemit (apply #'%emit-accurate event obj args))
