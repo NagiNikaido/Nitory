@@ -28,6 +28,7 @@
                     (:sig :trivial-signal)
                     (:bb :blackbird)
                     (:dex :dexador))
+  (:import-from :serapeum #:->)
   (:export
    #:main
    #:dice/parse-dice-cell
@@ -39,7 +40,7 @@
    ;; from utils
    #:encode-to-json-string
    ;; from napcatp-types
-   #:alist-p
+   #:alist-sim-p
    #:segment-p
    #:message-p
    #:message

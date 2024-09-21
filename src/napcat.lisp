@@ -179,7 +179,7 @@
                       (let ((sym (to-sym (str:concat "do-" api))))
                         `(progn
                            (defmethod ,sym ((napcat-instance napcat) params)
-                             (assert (alist-p params ,param-model))
+                             (assert (alist-sim-p params ,param-model))
                              (send-data napcat-instance ,api params))
                            (export ',sym)))))
                `(block apis ,@(loop for (api param-model) on api-list by #'cddr

@@ -1,6 +1,6 @@
 ;;;; -*- Mode: lisp; indent-tabs-mode: nil -*-
 ;;;
-;;; napcat-types.lisp ---- Auxiliary types for napcat.
+;;; message.lisp ---- Message types & operations for OneBot 11 protocol.
 ;;;
 ;;; Copyright (C) 2024  NagiNikaido <naginikaido@kuusouhakuchuu.cn>
 ;;;
@@ -20,7 +20,15 @@
 
 (in-package #:nitory)
 
-(defun alist-p (list model)
+(-> alist-p (t) boolean)
+(defun alist-p (list)
+  (trivial-types:association-list-p list))
+
+(deftype alist ()
+  `(satisfies alist-p))
+
+(-> alist-sim-p (alist alist) boolean)
+(defun alist-sim-p (list model)
   (loop for (key . val) in model
         do (let ((as (assoc (strip-optional key) list)))
              (unless (or (and (optional-p key)
@@ -31,28 +39,36 @@
                                 (string (equal val (cdr as)))
                                 (symbol (typep (cdr as) val))
                                 (function (funcall val (cdr as)))
-                                (list (alist-p (cdr as) val)))))
+                                (list (alist-sim-p (cdr as) val)))))
                (return)))
         finally (return t)))
 
+(-> eliminate-nil (list) list)
 (defun eliminate-nil (alist)
-  (loop for x in alist
-        if x collect x))
+  (loop for x in alist if x collect x))
 
+(-> segment-p (alist) boolean)
 (defun segment-p (seg)
   (or (text-segment-p seg)
       (image-segment-p seg)
       (at-segment-p seg)
       (reply-segment-p seg)))
 
+(-> make-text-segment (string) alist)
 (defun make-text-segment (text)
   `((:type . "text")
     (:data . ((:text . ,text)))))
 
+(-> text-segment-p (t) boolean)
 (defun text-segment-p (seg)
-  (alist-p seg '((:type . "text")
-                 (:data . ((:text . string))))))
+  (alist-sim-p seg '((:type . "text")
+                     (:data . ((:text . string))))))
 
+(-> make-image-segment (string &key (:thumb string)
+                        (:name string)
+                        (:url string)
+                        (:summary string)
+                        (:sub-type integer)) alist)
 (defun make-image-segment (file &key thumb name url summary sub-type)
   `((:type . "image")
     (:data . ,(eliminate-nil
@@ -63,34 +79,40 @@
                  ,(if summary `(:summary . ,summary) nil)
                  ,(if sub-type `(:sub-type . ,sub-type) nil))))))
 
+(-> image-segment-p (t) boolean)
 (defun image-segment-p (seg)
-  (alist-p seg `((:type . "image")
-                 (:data . ((:file . string)
-                           (:thumb? . string)
-                           (:name? . string)
-                           (:url? . string)
-                           (:summary? . string)
-                           (:sub-type? . ,(lambda (x) (or (= x 0) (= x 1)))))))))
+  (alist-sim-p seg `((:type . "image")
+                     (:data . ((:file . string)
+                               (:thumb? . string)
+                               (:name? . string)
+                               (:url? . string)
+                               (:summary? . string)
+                               (:sub-type? . ,(lambda (x) (or (= x 0) (= x 1)))))))))
 
+(-> make-at-segment (number &key (:name string)) alist)
 (defun make-at-segment (qq &key name)
   `((:type . "at")
     (:data . ,(eliminate-nil
                `((:qq . ,qq)
                  ,(if name `(:name . ,name) nil))))))
 
+(-> at-segment-p (t) boolean)
 (defun at-segment-p (seg)
-  (alist-p seg '((:type . "at")
-                 (:data . ((:qq . number)
-                           (:name? . string))))))
+  (alist-sim-p seg '((:type . "at")
+                     (:data . ((:qq . number)
+                               (:name? . string))))))
 
+(-> make-reply-segment (string) alist)
 (defun make-reply-segment (id)
   `((:type . "reply")
     (:data . ((:id . ,id)))))
 
+(-> reply-segment-p (t) boolean)
 (defun reply-segment-p (seg)
-  (alist-p seg '((:type . "reply")
-                 (:data . ((:id . string))))))
+  (alist-sim-p seg '((:type . "reply")
+                     (:data . ((:id . string))))))
 
+(-> make-segment ((or string symbol) &rest t) alist)
 (defun make-segment (key &rest rest)
   (if (typep key 'string)
       (make-text-segment key)
@@ -101,12 +123,14 @@
         (:reply (apply #'make-reply-segment rest))
         (otherwise (error "Unsupported message segment type!")))))
 
+(-> make-message (&rest t) cons)
 (defun make-message (&rest rest)
   `(:message . #(,@(loop for seg in rest
                          collect (if (atom seg)
                                      (make-segment seg)
                                      (apply #'make-segment seg))))))
 
+(-> message-p (t) boolean)
 (defun message-p (msg)
   (or (stringp msg)
       (every #'segment-p msg)))

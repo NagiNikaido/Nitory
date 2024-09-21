@@ -36,6 +36,7 @@
                "str"
                "trivial-signal"
                "trivial-package-local-nicknames"
+               "trivial-types"
                "verbose"
 	       "websocket-driver"
                "yason")
@@ -46,9 +47,12 @@
     :serial t
     :components
     ((:file "package")
+     (:module "core"
+      :serial t
+      :components
+      ((:file "event-bus")
+       (:file "message")))
      (:file "utils")
-     (:file "event-bus")
-     (:file "napcat-types")
      (:file "napcat")
      (:file "nick")
      (:file "dice")
