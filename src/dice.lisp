@@ -230,12 +230,8 @@
 (defun dice/cmd-roll (json args)
   (multiple-value-bind (match arguments)
       (re:scan-to-strings "r(h)?((\\d+)|([+-]\\d+))?" (first args))
-    (let* ((msg-type (if (elt arguments 0)
-                         "private"
-                         (gethash "message_type" json)))
+    (let* ((msg-type (when (elt arguments 0) "private"))
            (sender (gethash "sender" json))
-           (group-id (gethash "group_id" json))
-           (user-id (gethash "user_id" json))
            (rest (str:join " "
                            (if (elt arguments 1)
                                (cons (s:fmt "~ad~a"
@@ -244,9 +240,5 @@
                                      (cdr args))
                                (cdr args))))
            (msg (dice/roll-dice rest sender)))
-      (do-send-msg *napcat-websocket-client*
-        (list (str:string-case msg-type
-                ("group" `(:group-id . ,group-id))
-                ("private" `(:user-id . ,user-id)))
-              `(:message-type . ,msg-type)
-              (make-message msg))))))
+      (reply-to *napcat-websocket-client*
+                json (make-message msg) msg-type))))

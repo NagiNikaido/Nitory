@@ -206,29 +206,14 @@
 更多功能开发中" +version+ *startup-timestamp*))
 
 (defun nitory/cmd-help (json args &key &allow-other-keys)
-  (let* ((msg-type (gethash "message_type" json))
-	 (group-id (gethash "group_id" json))
-	 (user-id (gethash "user_id" json))
-	 (msg (nitory/print-help args)))
-    (do-send-msg *napcat-websocket-client*
-      (list (str:string-case msg-type
-	      ("group" `(:group-id . ,group-id))
-	      ("private" `(:user-id . ,user-id)))
-	    `(:message-type . ,msg-type)
-            (make-message msg)))))
+  (let* ((msg (nitory/print-help args)))
+    (reply-to *napcat-websocket-client*
+              json (make-message msg))))
 
 (defun nitory/cmd-not-supported (json args &key &allow-other-keys)
-  (let* ((msg-type (gethash "message_type" json))
-	 (group-id (gethash "group_id" json))
-	 (user-id (gethash "user_id" json))
-	 (msg "无效指令"))
-    (do-send-msg *napcat-websocket-client*
-      (list (str:string-case msg-type
-	      ("group" `(:group-id . ,group-id))
-	      ("private" `(:user-id . ,user-id)))
-	    `(:message-type . ,msg-type)
-	    `(:message . #(((:type . "text")
-			    (:data . ((:text . ,msg))))))))))
+  (let* ((msg "无效指令"))
+    (reply-to *napcat-websocket-client*
+              json (make-message msg))))
 
 (defun event/receive-notice (notice)
   ())

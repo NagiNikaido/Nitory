@@ -53,9 +53,7 @@
   (remhash user-id *nicknames*))
 
 (defun nick/cmd-set-nick (json args)
-  (let* ((msg-type (gethash "message_type" json))
-	 (group-id (gethash "group_id" json))
-	 (user-id (gethash "user_id" json))
+  (let* ((user-id (gethash "user_id" json))
 	 (sender (gethash "sender" json))
 	 (default-nick (gethash "nickname" sender))
 	 (current-nick (second args))
@@ -68,9 +66,5 @@
 				   (nick/set-nick user-id current-nick)
 				   (s:fmt "* ~a 现在的昵称为 ~a" default-nick current-nick)))
 		  (t "指令格式错误")))))
-    (do-send-msg *napcat-websocket-client*
-      (list (str:string-case msg-type
-	      ("group" `(:group-id . ,group-id))
-	      ("private" `(:user-id . ,user-id)))
-	    `(:message-type . ,msg-type)
-            (make-message msg)))))
+    (reply-to *napcat-websocket-client*
+              json (make-message msg))))

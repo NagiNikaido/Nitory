@@ -33,18 +33,19 @@
 (defvar *prefix* "/opt/nitory/")
 (defvar *self-id* nil)
 
+(-> to-string ((or string symbol)) string)
 (defun to-string (string-or-sym)
   (typecase string-or-sym
     (string string-or-sym)
-    (symbol (write-to-string string-or-sym))
-    (t (error (s:fmt "~a is no STRING nor SYMBOL!" string-or-sym)))))
+    (symbol (write-to-string string-or-sym))))
 
+(-> to-sym ((or string symbol)) symbol)
 (defun to-sym (string-or-sym)
   (typecase string-or-sym
     (string (read-from-string (substitute #\- #\_ string-or-sym)))
-    (symbol string-or-sym)
-    (t (error (s:fmt "~a is no STRING nor SYMBOL!" string-or-sym)))))
+    (symbol string-or-sym)))
 
+(-> strip-optional ((or string symbol)) symbol)
 (defun strip-optional (keysym)
   "Strip the trilling ? if keysym is an optional key."
   (if (optional-p keysym)
@@ -52,17 +53,22 @@
        (remove #\? (to-string keysym) :from-end t :count 1))
       keysym))
 
+(-> bool-value (t) boolean)
+(defun bool-value (x)
+  (not (null x)))
+
+(-> optional-p ((or string symbol)) boolean)
 (defun optional-p (keysym)
   "Check whether KEYSYM is an optional key. It should be either end with ? or ?|."
   (let* ((str (to-string keysym))
          (len (length str)))
-    (find #\? (reverse str) :end (min 2 len))))
+    (bool-value (find #\? (reverse str) :end (min 2 len)))))
 
+(-> keysym-name-to-json ((or string symbol)) string)
 (defun keysym-name-to-json (keysym)
   "Translating keysym NAME into json keys. Noticing that cl-json gives us (symbol-name keysym)
 which strips ||, we have to determine whether to convert name into underline style or just to
 preserve the current style by checking if all characters of NAME are uppercase."
-  
   (let ((name (if (symbolp keysym)
                   (symbol-name keysym)
                   keysym)))

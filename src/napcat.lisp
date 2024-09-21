@@ -269,3 +269,15 @@
          "get_cookies" '((:domain . string))
          ;; from GO-CQHTTP
          ))
+
+(defmethod reply-to ((napcat-instance napcat) json msg &optional msg-type)
+  (let* ((r-msg-type (or (when (string= msg-type "private") "private")
+                         (gethash "message_type" json)))
+         (group-id (gethash "group_id" json))
+         (user-id (gethash "user_id" json)))
+  (do-send-msg napcat-instance
+    (list (str:string-case r-msg-type
+            ("group" `(:group-id . ,group-id))
+            ("private" `(:user-id . ,user-id)))
+          `(:message-type . ,msg-type)
+          `(:message . ,msg)))))

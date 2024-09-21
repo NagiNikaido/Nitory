@@ -73,11 +73,11 @@
   `((:type . "image")
     (:data . ,(eliminate-nil
                `((:file . ,file)
-                 ,(if thumb `(:thumb . ,thumb) nil)
-                 ,(if name `(:name . ,name) nil)
-                 ,(if url `(:url . ,url) nil)
-                 ,(if summary `(:summary . ,summary) nil)
-                 ,(if sub-type `(:sub-type . ,sub-type) nil))))))
+                 ,(when thumb `(:thumb . ,thumb))
+                 ,(when name `(:name . ,name))
+                 ,(when url `(:url . ,url))
+                 ,(when summary `(:summary . ,summary))
+                 ,(when sub-type `(:sub-type . ,sub-type)))))))
 
 (-> image-segment-p (t) boolean)
 (defun image-segment-p (seg)
@@ -94,7 +94,7 @@
   `((:type . "at")
     (:data . ,(eliminate-nil
                `((:qq . ,qq)
-                 ,(if name `(:name . ,name) nil))))))
+                 ,(when name `(:name . ,name)))))))
 
 (-> at-segment-p (t) boolean)
 (defun at-segment-p (seg)
@@ -123,12 +123,14 @@
         (:reply (apply #'make-reply-segment rest))
         (otherwise (error "Unsupported message segment type!")))))
 
-(-> make-message (&rest t) cons)
+(-> make-message (&rest t) array)
 (defun make-message (&rest rest)
-  `(:message . #(,@(loop for seg in rest
-                         collect (if (atom seg)
-                                     (make-segment seg)
-                                     (apply #'make-segment seg))))))
+  (let ((res (loop for seg in rest
+                    collect (if (atom seg)
+                                (make-segment seg)
+                                (apply #'make-segment seg)))))
+    (make-array (list (length res))
+                :initial-contents res)))
 
 (-> message-p (t) boolean)
 (defun message-p (msg)
