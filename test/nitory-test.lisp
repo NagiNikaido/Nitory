@@ -64,11 +64,5 @@
                       ,(car (nitory:dice/parse-dice-term "6d20*3"))) 8)))
      (ok (signals (nitory:dice/parse-dice-expr "3d10h1l2")))))
 
-(deftest function-test
-   (format t "~A~%~%" (nitory:dice/roll-dice "3d10h2*3d20 如何"))
-   (format t "~A~%~%" (nitory:dice/roll-dice "10#10d20h3 怎样"))
-   (format t "~A~%~%" (nitory:dice/roll-dice "38) 什么"))
-   (format t "~A~%~%" (nitory:dice/roll-dice "")))
-
 (defun run-all-tests ()
   (run :nitory/test))

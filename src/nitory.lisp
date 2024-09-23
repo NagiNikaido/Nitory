@@ -118,6 +118,7 @@
                                                :port (@ opts 'url)))
   (v:info :main "Got NapCat instance.")
   (v:info :main "Updating event emitter.")
+  ;(on :message *napcat-websocket-client* #'event/receive-command-deprecated)
   (on :message *napcat-websocket-client* #'event/receive-command)
   (on :request *napcat-websocket-client* #'event/receive-request)
   (v:info :main "Enable nickname service.")
@@ -173,7 +174,7 @@
               (split-at (cdr message)))
         (cons nil (split-at message)))))
 
-(defun event/receive-command (json)
+(defun event/receive-command-deprecated (json)
   (v:debug :main "~a" (split-reply (@ json "message")))
   (multiple-value-bind (reply-id at-id message)
       (values-list (split-reply (@ json "message")))
@@ -187,11 +188,33 @@
                  (cmd (car args)))
             (cond
               ((string= "help" cmd) (nitory/cmd-help json args))
-              ((re:scan "^rh?([+-]\\d+|\\d+)?$" cmd) (dice/cmd-roll json args))
-              ((string= "nn" cmd) (nick/cmd-set-nick json args))
-              ((string= "khst" cmd) (khst/cmd-khst json args))
-              ((string= "rm" cmd) (khst/cmd-remove json args :reply reply-id :at at-id))
+              ((re:scan "^rh?([+-]\\d+|\\d+)?$" cmd) (dice/cmd-roll-deprecated json args))
+              ((string= "nn" cmd) (nick/cmd-set-nick-deprecated json args))
+              ((string= "khst" cmd) (khst/cmd-khst-deprecated json args))
+              ((string= "rm" cmd) (khst/cmd-remove-deprecated json args :reply reply-id :at at-id))
               (t (nitory/cmd-not-supported json args)))))))))
+
+(defun event/receive-command (json)
+  (v:debug :main "~a" (split-reply (@ json "message")))
+  (multiple-value-bind (reply-id at-id msg)
+      (values-list (split-reply (@ json "message")))
+    (when (and (= 1 (length msg))
+               (string= "text" (@ (first msg) "type")))
+      (let ((raw-msg (str:trim (@ (first msg) "data" "text"))))
+        (when (command-string-p raw-msg)
+          (let ((raw-args (str:words (subseq raw-msg 1))))
+            (handler-case
+                (unless (loop for cmd in *commands*
+                              when (parse-command cmd json raw-args :reply-id reply-id
+                                                                    :at-id at-id)
+                                return t
+                              end)
+                  (nitory/cmd-not-supported json raw-args))
+              (command-parse-error (c)
+                (reply-to *napcat-websocket-client*
+                          json (make-message
+                                (or (error-message c)
+                                    (s:fmt "告诉他我的系统出问题了"))))))))))))
 
 (defun nitory/print-help (rest)
   (s:fmt

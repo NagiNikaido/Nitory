@@ -1,6 +1,6 @@
 ;;;; -*- Mode: lisp; indent-tabs-mode: nil -*-
 ;;;
-;;; napcat-test.lisp ---- Testcases for NapCat.
+;;; napcat-test.lisp ---- Test cases for NapCat.
 ;;;
 ;;; Copyright (C) 2024  NagiNikaido <naginikaido@kuusouhakuchuu.cn>
 ;;;

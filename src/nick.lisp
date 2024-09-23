@@ -52,7 +52,7 @@
 (defun nick/rm-nick (user-id)
   (remhash user-id *nicknames*))
 
-(defun nick/cmd-set-nick (json args)
+(defun nick/cmd-set-nick-deprecated (json args)
   (let* ((user-id (@ json "user_id"))
 	 (sender (@ json "sender"))
 	 (default-nick (@ sender "nickname"))
@@ -68,3 +68,34 @@
 		  (t "指令格式错误")))))
     (reply-to *napcat-websocket-client*
               json (make-message msg))))
+
+(defun nick/cmd-set-nick (json nickname &key &allow-other-keys)
+  (let* ((user-id (@ json "user_id"))
+         (sender (@ json "sender"))
+         (default-nick (@ sender "nickname"))
+         (msg (if nickname
+                  (progn
+                    (nick/set-nick user-id nickname)
+                    (s:fmt "* ~a 现在的昵称为 ~a" default-nick nickname))
+                  (progn
+                    (nick/rm-nick user-id)
+                    (s:fmt "* 恢复 ~a 的默认昵称" default-nick)))))
+    (reply-to *napcat-websocket-client*
+              json (make-message msg))))
+
+(register-command
+ (make-command :display-name "nn"
+               :cmd-face "nn"
+               :hidden nil
+               :short-usage "设置昵称"
+               :options (list (make-option
+                               "nickname"
+                               :predicator
+                               (lambda (opt)
+                                 (when (command-string-p opt)
+                                   (error 'command-parse-error :error-type :wrong-argument
+                                          :error-message "昵称不可以.或/开头")
+                                   t))
+                               :optional t))
+               :action #'nick/cmd-set-nick
+               :usage ""))
