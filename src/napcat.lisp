@@ -292,5 +292,5 @@
     (list (str:string-case r-msg-type
             ("group" `(:group-id . ,group-id))
             ("private" `(:user-id . ,user-id)))
-          `(:message-type . ,msg-type)
+          `(:message-type . ,r-msg-type)
           `(:message . ,msg)))))
