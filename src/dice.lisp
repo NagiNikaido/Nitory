@@ -32,8 +32,11 @@
 (defun dice/dice-expr-legal-leading-p (leading)
   (or (digit-char-p leading)
       (char= #\d leading)
+      (char= #\a leading)
+      (char= #\b leading)
       (char= #\h leading)
       (char= #\l leading)
+      (char= #\e leading)
       (char= #\( leading)))
 
 (export-always 'dice/dice-expr-legal-operator-p)
@@ -76,26 +79,37 @@
                        (char= #\) (char cell (1+ pos)))))
           `((:braket ,res) ,(+ pos 2)))
         (multiple-value-bind (match regs)
-            (re:scan-to-strings "^(((?<dice>\\d+)?d(?<face>\\d+)?(h(?<high>\\d+)|l(?<low>\\d+))?)|(?<const>\\d+))" cell)
+            (re:scan-to-strings "^((?<dice-or-const>\\d*)(?:d(?<face>\\d*))?(?:a(?<lb>\\d+)|b(?<ub>\\d+)|h(?<high>\\d+)|l(?<low>\\d+))?(?:e(?<extra>\\d+))?)" cell)
           (assert match)
-          ;; regs: #(whole dice-cell dice face hl high low const)
-          (multiple-value-bind (whole dice-cell dice face hl high low const)
+          ;; regs: #(whole const dice-cell dice df face abhl lb ub high low)
+          (multiple-value-bind (whole dice-or-const face lb ub high low extra)
               (values-list (mapcar
                             (lambda (x)
                               (ignore-errors
                                (parse-integer x)))
                             (coerce regs 'list)))
-            (if const
-                `((:const ,const) ,(length (elt regs 0)))
-                (progn
+            
+            (if (notany #'identity (subseq regs 2))
+                `((:const ,dice-or-const) ,(length (elt regs 0)))
+                (let ((dice dice-or-const))
                   (assert (and (>= (or dice 1)
                                    (or high 1))
                                (>= (or dice 1)
                                    (or low 1))))
+                  (assert (and (>= (or face 20) (or lb 1))
+                               (<= 1 (or lb 1))))
+                  (assert (and (>= (or face 20) (or ub 1))
+                               (<= 1 (or ub 1))))
+                  (assert (or (not extra)
+                              (and ub (< extra (or face 20)))
+                              (> extra 1)))
                   `((:roll ,@(when dice `(:dice ,dice))
                            ,@(when face `(:face ,face))
+                           ,@(when lb `(:lb ,lb))
+                           ,@(when ub `(:ub ,ub))
                            ,@(when high `(:high ,high))
-                           ,@(when low  `(:low ,low))) ,(length (elt regs 0))))))))))
+                           ,@(when low  `(:low ,low))
+                           ,@(when extra `(:extra ,extra))) ,(length (elt regs 0))))))))))
 
 (export-always 'dice/parse-dice-term)
 (defun dice/parse-dice-term (term)
@@ -160,28 +174,65 @@
            (post (dice/parse-dice-expr-init single-expr)))
       `(:repeat  ,(if regs (parse-integer (elt regs 0)) 1) (,expr ,single-expr) ,(car post)))))
 
+(defun dice/%pretty-concat (list selected)
+  (s:fmt "{~a}"
+         (str:join
+          ""
+          (loop with first? = t
+                with previous-selected = nil
+                with s
+                for d in list
+                for i = 0 then (incf i)
+                do (setf s (typecase selected
+                             (sequence (elt selected i))
+                             (function (funcall selected i))))
+                collect (s:fmt "~a~a~a~d"
+                               (if (and previous-selected (not s))
+                                   "]" "")
+                               (if first? "" ",")
+                               (if (and (not previous-selected) s)
+                                   "[" "")
+                               d) into dice-list
+                do (setf first? nil)
+                do (setf previous-selected s)
+                finally (return
+                          (if previous-selected
+                              (s:append1 dice-list "]")
+                              dice-list))))))
+
 (export-always 'dice/generate-dices)
-(defun dice/generate-dices (&key (dice 1) (face 20) (high nil) (low nil) &allow-other-keys)
-  (flet ((dice-pretty-concat (list kth)
-           (s:fmt "{~a}"
-                  (str:join ","
-                            (loop for d in list
-                                  for i = 1 then (incf i)
-                                  collect (s:fmt "~a~d~a"
-                                                 (if (= i 1) "[" "")
-                                                 d
-                                                 (if (= i kth) "]" "")))))))
-    (let ((rolled (loop repeat dice collect (1+ (random face)))))
-      (if high
-          (let ((sorted (sort rolled #'>)))
-            `(,(dice-pretty-concat sorted high)
-              ,(reduce #'+ (subseq sorted 0 high))))
-          (if low
-              (let ((sorted (sort rolled #'<)))
-                `(,(dice-pretty-concat sorted low)
-                  ,(reduce #'+ (subseq sorted 0 low))))
-              `(,(s:fmt "{~a}" (str:join "," (mapcar #'write-to-string rolled)))
-                ,(reduce #'+ rolled)))))))
+(defun dice/generate-dices (&key (dice 1) (face 20) (high nil) (low nil)
+                            (lb nil) (ub nil) (extra nil) &allow-other-keys)
+  (let ((rolled (loop repeat dice collect (1+ (random face)))))
+    (when extra
+      (flet ((extra-p (cd)
+               (if ub
+                   (<= cd extra)
+                   (>= cd extra))))
+       (loop with q = (apply #'s:queue rolled)
+             with cd
+             with nd
+             until (s:queue-empty-p q)
+             do (setf cd (s:front q))
+             do (s:deq q)
+             if (extra-p cd)
+               do (setf nd (1+ (random face)))
+               and do (setf rolled (s:append1 rolled nd))
+               and do (s:enq nd q)
+             end)))
+    (cond
+      (high (let ((sorted (sort rolled #'>)))
+              `(,(dice/%pretty-concat sorted (lambda (i) (< i high)))
+                ,(reduce #'+ (subseq sorted 0 high)))))
+      (low (let ((sorted (sort rolled #'<)))
+             `(,(dice/%pretty-concat sorted (lambda (i) (< i low)))
+               ,(reduce #'+ (subseq sorted 0 low)))))
+      (lb `(,(dice/%pretty-concat rolled (mapcar (lambda (x) (>= x lb)) rolled))
+            ,(count-if (lambda (x) (>= x lb)) rolled)))
+      (ub `(,(dice/%pretty-concat rolled (mapcar (lambda (x) (<= x ub)) rolled))
+            ,(count-if (lambda (x) (<= x ub)) rolled)))
+      (t `(,(s:fmt "{~a}" (str:join "," (mapcar #'write-to-string rolled)))
+           ,(reduce #'+ rolled))))))
 
 (export-always 'dice/exec-dice-tree)
 (defun dice/exec-dice-tree (tree)
@@ -206,27 +257,31 @@
                         collect (dice/exec-dice-tree (cadddr tree)))))
       (otherwise (error "G!")))))
 
+(export-always 'dice/roll-dice)
+(defun dice/roll-dice (expr &optional desc sender)
+  (handler-case
+      (let* ((expr-tree (dice/parse-dice-full-expr expr))
+             (res (dice/exec-dice-tree expr-tree)))
+        (str:join #\newline
+                  `(,(str:concat (if sender
+                                     (or (nick/get-nick (@ sender "user_id"))
+                                         (a:ensure-gethash "nickname" sender ""))
+                                     "")
+                                 " 掷骰 "
+                                 (caar res)
+                                 (when desc (s:fmt " (~a)" desc))
+                                 ":")
+                    ,@(loop for a in (cadr res)
+                            collect (str:join "=" `(,(cadar res)
+                                                    ,(car a)
+                                                    ,(write-to-string (cadr a))))))))
+    (error () "掷骰失败")))
+
 (export-always 'dice/cmd-roll)
 (defun dice/cmd-roll (json expr desc &key private &allow-other-keys)
   (let* ((sender (@ json "sender"))
          (msg-type (when private "private"))
-         (msg (handler-case
-                  (let* ((expr-tree (dice/parse-dice-full-expr expr))
-                         (res (dice/exec-dice-tree expr-tree)))
-                    (str:join #\newline
-                              `(,(str:concat (if sender
-                                                 (or (nick/get-nick (@ sender "user_id"))
-                                                     (a:ensure-gethash "nickname" sender ""))
-                                                 "")
-                                             " 掷骰 "
-                                             (caar res)
-                                             (when desc (s:fmt " (~a)" desc))
-                                             ":")
-                                ,@(loop for a in (cadr res)
-                                        collect (str:join "=" `(,(cadar res)
-                                                                ,(car a)
-                                                                ,(write-to-string (cadr a))))))))
-               (error () "掷骰失败"))))
+         (msg (dice/roll-dice expr desc sender)))
     (reply-to *napcat-websocket-client*
               json (make-message msg) msg-type)))
 
@@ -249,15 +304,23 @@
 "掷骰指令（默认d20）
 .r [重复次数#][掷骰表达式] [备注]
 掷骰表达式为掷骰单元及常数组成的算术表达式
-掷骰单元形如 [枚数]d[面数][h取高枚数][l取低枚数]
+掷骰单元形如 [枚数][d面数][a目标下限][b目标上限][h取高枚数][l取低枚数][e追加目标]
+其中：
+  目标下限：每掷出一个大于等于目标下限的骰子计为一个成功数
+  目标上限：每掷出一个小于等于目标上限的骰子计为一个成功数
+  取高枚数：取最高的若干枚骰子
+  取低枚数：取最低的若干枚骰子
+  追加目标：每掷出大于等于追加目标的结果则追加一枚骰子，若同时设定了目标上限则转为“小于等于追加目标”，其余不变
 例：
-    3d6+8
-    2d20h1
-    1d*3
-    d6-2
+    3d6        掷3枚d6
+    2d20h1     掷2枚d20，取其中较高的1枚
+    3d20l2     掷2枚d20，取其中最低的2枚
+    6d20b5e1   掷6枚d20，每掷出小于等于5的结果就计为一次成功，每掷出小于等于1的结果就追加一枚骰子
+    6d10a8e10  掷6枚d10，每掷出大于等于8的结果就计为一次成功，每掷出大于等于10的结果就追加一枚骰子
 需注意：
-  取高枚数与取低枚数最多有一项
-  取高枚数与取低枚数需小于总枚数
+  目标上限、目标下限、取高枚数与取低枚数最多有一项
+  取高枚数与取低枚数需小于等于总枚数
+  追加目标必须大于1（需要大于等于追加目标时）或小于面数（需要小于等于追加目标时），否则将无限追加
 另外，.rh 指令用于暗骰，但需要添加好友才能收到信息
 当掷骰较为简单时，可将枚数或运算合并至r上，如：
     .r3  === .r 3d20
