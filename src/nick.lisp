@@ -52,23 +52,6 @@
 (defun nick/rm-nick (user-id)
   (remhash user-id *nicknames*))
 
-(defun nick/cmd-set-nick-deprecated (json args)
-  (let* ((user-id (@ json "user_id"))
-	 (sender (@ json "sender"))
-	 (default-nick (@ sender "nickname"))
-	 (current-nick (second args))
-	 (msg (let ((arg-len (length args)))
-		(cond
-		  ((= 1 arg-len) (progn
-				   (nick/rm-nick user-id)
-				   (s:fmt "* 恢复 ~a 的默认昵称" default-nick)))
-		  ((= 2 arg-len) (progn
-				   (nick/set-nick user-id current-nick)
-				   (s:fmt "* ~a 现在的昵称为 ~a" default-nick current-nick)))
-		  (t "指令格式错误")))))
-    (reply-to *napcat-websocket-client*
-              json (make-message msg))))
-
 (defun nick/cmd-set-nick (json nickname &key &allow-other-keys)
   (let* ((user-id (@ json "user_id"))
          (sender (@ json "sender"))

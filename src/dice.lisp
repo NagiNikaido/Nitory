@@ -206,56 +206,6 @@
                         collect (dice/exec-dice-tree (cadddr tree)))))
       (otherwise (error "G!")))))
 
-(defun dice/roll-dice-deprecated (rest &optional sender)
-  (let* ((leading (if (= (length rest) 0)
-                     #\d
-                     (char rest 0)))
-         (space (position #\space rest))
-         (expr (handler-case (dice/parse-dice-full-expr
-                              (if space
-                                  (subseq rest 0 space)
-                                  (if (dice/dice-expr-leading-p leading)
-                                      rest
-                                      "")))
-                 (error () (return-from dice/roll-dice-deprecated "掷骰失败"))))
-         (comment (str:trim
-                   (if space
-                       (subseq rest (1+ space))
-                       (if (dice/dice-expr-leading-p leading)
-                           ""
-                           rest))))
-         (res (handler-case (dice/exec-dice-tree expr)
-                (error () nil))))
-        (if (not res)
-            "掷骰失败"
-            (str:join #\newline
-                      `(,(str:concat (if sender
-                                         (or (nick/get-nick (@ sender "user_id"))
-                                             (a:ensure-gethash "nickname" sender ""))
-                                         "") " 掷骰 " (caar res)
-                                         (if (string/= comment "") (s:fmt " (~a)" comment)) ":")
-                        ,@(loop for a in (cadr res)
-                                collect (str:join "=" `(,(cadar res)
-                                                        ,(car a)
-                                                        ,(write-to-string (cadr a))))))))))
-
-(defun dice/cmd-roll-deprecated (json args)
-  (multiple-value-bind (match arguments)
-      (re:scan-to-strings "r(h)?((\\d+)|([+-]\\d+))?" (first args))
-    (let* ((msg-type (when (elt arguments 0) "private"))
-           (sender (@ json "sender"))
-           (rest (str:join " "
-                           (if (elt arguments 1)
-                               (cons (s:fmt "~ad~a"
-                                            (or (elt arguments 2) "")
-                                            (or (elt arguments 3) ""))
-                                     (cdr args))
-                               (cdr args))))
-           (msg (dice/roll-dice-deprecated rest sender)))
-      (reply-to *napcat-websocket-client*
-                json (make-message msg) msg-type))))
-
-
 (export-always 'dice/cmd-roll)
 (defun dice/cmd-roll (json expr desc &key private &allow-other-keys)
   (let* ((sender (@ json "sender"))
