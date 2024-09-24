@@ -30,6 +30,8 @@
                 '((:roll :dice 3 :face 10 :high 1) 6)))
      (ok (equal (nitory:dice/parse-dice-cell "3d10l2")
                 '((:roll :dice 3 :face 10 :low 2) 6)))
+     (ok (equal (nitory:dice/parse-dice-cell "3l1")
+                '((:roll :dice 3 :low 1) 3)))
      (ok (signals (nitory:dice/parse-dice-cell "")))
      (ok (signals (nitory:dice/parse-dice-cell "$8")))
      (ok (equal (nitory:dice/parse-dice-cell "8")
@@ -63,6 +65,19 @@
                 `((:+ (:const 8)
                       ,(car (nitory:dice/parse-dice-term "6d20*3"))) 8)))
      (ok (signals (nitory:dice/parse-dice-expr "3d10h1l2")))))
+
+(deftest function-test
+  (defun print-roll (expr &optional desc sender)
+    (format t "~A~%~%" (nitory:dice/roll-dice expr desc sender)))
+  (print-roll "3d10h2*3d20" "如何")
+  (print-roll "10#10d20h3" "怎样")
+  (print-roll "38)" "什么")
+  (print-roll "")
+  (print-roll "3d10a8")
+  (print-roll "3d10b3")
+  (print-roll "3l1")
+  (print-roll "3a15")
+  (print-roll "3b5"))
 
 (defun run-all-tests ()
   (run :nitory/test))
