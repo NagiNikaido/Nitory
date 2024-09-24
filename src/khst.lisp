@@ -184,26 +184,26 @@
 
 (defun khst/cmd-remove (json rf &key reply at &allow-other-keys)
   (let ((res nil))
-    (if (or (null reply)
-            (and at (/= at *self-id*)))
-        (if rf ; It's an easter egg!
-            (setf res `(:image ,*khst-are-you-sure*
-                        :sub-type 1))
-            (setf res "格式错误"))
-        (let ((history-line (@ *khst-history* reply)))
-          (if (null history-line)
-              (setf res "* 未找到看话说图记录。是否回复错误？")
-              (let* ((keyword (first history-line))
-                     (entry (second history-line))
-                     (entries (@ *khst-lists* keyword)))
-                (if (find entry entries :test #'equal)
-                    (progn (setf (@ *khst-lists* keyword)
-                                 (remove entry entries))
-                           (setf res (s:fmt "* 已从关键词\"~a\"的条目中删除了该图片" keyword))
-                           (v:info :khst "removed ~a from ~a:~a" entry keyword entries))
-                    (setf res (s:fmt "* 该图片已不在关键词\"~a\"的条目中。是否已被删除？" keyword)))))))
-    (reply-to *napcat-websocket-client*
-              json (make-message res))))
+    (if rf ; It's an easter egg!
+        (setf res `(:image ,*khst-are-you-sure*
+                    :sub-type 1))
+        (if (or (null reply)
+                (and at (/= at *self-id*)))
+            (setf res "格式错误")
+            (let ((history-line (@ *khst-history* reply)))
+              (if (null history-line)
+                  (setf res "* 未找到看话说图记录。是否回复错误？")
+                  (let* ((keyword (first history-line))
+                         (entry (second history-line))
+                         (entries (@ *khst-lists* keyword)))
+                    (if (find entry entries :test #'equal)
+                        (progn (setf (@ *khst-lists* keyword)
+                                     (remove entry entries))
+                               (setf res (s:fmt "* 已从关键词\"~a\"的条目中删除了该图片" keyword))
+                               (v:info :khst "removed ~a from ~a:~a" entry keyword entries))
+                        (setf res (s:fmt "* 该图片已不在关键词\"~a\"的条目中。是否已被删除？" keyword))))))))
+        (reply-to *napcat-websocket-client*
+                  json (make-message res))))
 
 (defun khst/cmd-khst (json keyword &key &allow-other-keys)
   (let* ((message (@ json "message"))

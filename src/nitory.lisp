@@ -205,8 +205,8 @@
           (let ((raw-args (str:words (subseq raw-msg 1))))
             (handler-case
                 (unless (loop for cmd in *commands*
-                              when (parse-command cmd json raw-args :reply-id reply-id
-                                                                    :at-id at-id)
+                              when (parse-command cmd json raw-args :reply reply-id
+                                                                    :at at-id)
                                 return t
                               end)
                   (nitory/cmd-not-supported json raw-args))
