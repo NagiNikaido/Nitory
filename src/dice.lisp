@@ -55,10 +55,10 @@
                (eq op :/)))
     (otherwise nil)))
 
-(defun dice/rotate-fix- (tree op-category)
+(defun dice/%rotate-fix (tree op-category)
   (if (and (dice/dice-expr-op-p (car tree) op-category)
            (dice/dice-expr-op-p (caaddr tree) op-category))
-      (dice/rotate-fix- `(,(caaddr tree)
+      (dice/%rotate-fix `(,(caaddr tree)
                           (,(car tree) ,(cadr tree) ,(car (cdaddr tree)))
                           ,@(cdr (cdaddr tree))) op-category)
       tree))
@@ -92,19 +92,19 @@
                                    (or high 1))
                                (>= (or dice 1)
                                    (or low 1))))
-                  `((:roll ,@(if dice `(:dice ,dice) '())
-                           ,@(if face `(:face ,face) '())
-                           ,@(if high `(:high ,high) '())
-                           ,@(if low  `(:low ,low) '())) ,(length (elt regs 0))))))))))
+                  `((:roll ,@(when dice `(:dice ,dice))
+                           ,@(when face `(:face ,face))
+                           ,@(when high `(:high ,high))
+                           ,@(when low  `(:low ,low))) ,(length (elt regs 0))))))))))
 
 (export-always 'dice/parse-dice-term)
 (defun dice/parse-dice-term (term)
-  (let* ((rp (dice/parse-dice-term- term))
+  (let* ((rp (dice/%parse-dice-term term))
          (res (car rp))
          (pos (cadr rp)))
-    `(,(dice/rotate-fix- res :term) ,pos)))
+    `(,(dice/%rotate-fix res :term) ,pos)))
 
-(defun dice/parse-dice-term- (term)
+(defun dice/%parse-dice-term (term)
   (let* ((rp1 (dice/parse-dice-cell term))
          (res1 (car rp1))
          (pos1 (cadr rp1))
@@ -115,7 +115,7 @@
         rp1
         (progn
           (assert (dice/dice-term-legal-operator-p op))
-          (let* ((rp2 (dice/parse-dice-term- (subseq term (+ pos1 1))))
+          (let* ((rp2 (dice/%parse-dice-term (subseq term (1+ pos1))))
                  (res2 (car rp2))
                  (pos2 (cadr rp2)))
             `((,(if (char= #\* op)
@@ -123,12 +123,12 @@
 
 (export-always 'dice/parse-dice-expr)
 (defun dice/parse-dice-expr (expr)
-  (let* ((rp (dice/parse-dice-expr- expr))
+  (let* ((rp (dice/%parse-dice-expr expr))
          (res (car rp))
          (pos (cadr rp)))
-    `(,(dice/rotate-fix- res :expr) ,pos)))
+    `(,(dice/%rotate-fix res :expr) ,pos)))
 
-(defun dice/parse-dice-expr- (expr)
+(defun dice/%parse-dice-expr (expr)
   (let* ((rp1 (dice/parse-dice-term expr))
          (res1 (car rp1))
          (pos1 (cadr rp1))
@@ -138,7 +138,7 @@
         rp1
         (progn
           (assert (dice/dice-expr-legal-operator-p op))
-          (let* ((rp2 (dice/parse-dice-expr- (subseq expr (+ pos1 1))))
+          (let* ((rp2 (dice/%parse-dice-expr (subseq expr (1+ pos1))))
                  (res2 (car rp2))
                  (pos2 (cadr rp2)))
             `((,(if (char= #\+ op)
@@ -171,7 +171,7 @@
                                                  (if (= i 1) "[" "")
                                                  d
                                                  (if (= i kth) "]" "")))))))
-    (let ((rolled (loop repeat dice collect (+ 1 (random face)))))
+    (let ((rolled (loop repeat dice collect (1+ (random face)))))
       (if high
           (let ((sorted (sort rolled #'>)))
             `(,(dice-pretty-concat sorted high)
@@ -206,53 +206,99 @@
                         collect (dice/exec-dice-tree (cadddr tree)))))
       (otherwise (error "G!")))))
 
-(export-always 'dice/roll-dice)
-(defun dice/roll-dice (rest &optional sender)
-  (let* ((leading (if (= (length rest) 0)
-                     #\d
-                     (char rest 0)))
-         (space (position #\space rest))
-         (expr (handler-case (dice/parse-dice-full-expr
-                              (if space
-                                  (subseq rest 0 space)
-                                  (if (dice/dice-expr-leading-p leading)
-                                      rest
-                                      "")))
-                 (error () (return-from dice/roll-dice "掷骰失败"))))
-         (comment (str:trim
-                   (if space
-                       (subseq rest (+ 1 space))
-                       (if (dice/dice-expr-leading-p leading)
-                           ""
-                           rest))))
-         (res (handler-case (dice/exec-dice-tree expr)
-                (error () nil))))
-        (if (not res)
-            "掷骰失败"
-            (str:join #\newline
-                      `(,(str:concat (if sender
-                                         (or (nick/get-nick (@ sender "user_id"))
-                                             (a:ensure-gethash "nickname" sender ""))
-                                         "") " 掷骰 " (caar res)
-                                         (if (string/= comment "") (s:fmt " (~a)" comment)) ":")
-                        ,@(loop for a in (cadr res)
-                                collect (str:join "=" `(,(cadar res)
-                                                        ,(car a)
-                                                        ,(write-to-string (cadr a))))))))))
-
 (export-always 'dice/cmd-roll)
-(defun dice/cmd-roll (json args)
-  (multiple-value-bind (match arguments)
-      (re:scan-to-strings "r(h)?((\\d+)|([+-]\\d+))?" (first args))
-    (let* ((msg-type (when (elt arguments 0) "private"))
-           (sender (@ json "sender"))
-           (rest (str:join " "
-                           (if (elt arguments 1)
-                               (cons (s:fmt "~ad~a"
-                                            (or (elt arguments 2) "")
-                                            (or (elt arguments 3) ""))
-                                     (cdr args))
-                               (cdr args))))
-           (msg (dice/roll-dice rest sender)))
-      (reply-to *napcat-websocket-client*
-                json (make-message msg) msg-type))))
+(defun dice/cmd-roll (json expr desc &key private &allow-other-keys)
+  (let* ((sender (@ json "sender"))
+         (msg-type (when private "private"))
+         (msg (handler-case
+                  (let* ((expr-tree (dice/parse-dice-full-expr expr))
+                         (res (dice/exec-dice-tree expr-tree)))
+                    (str:join #\newline
+                              `(,(str:concat (if sender
+                                                 (or (nick/get-nick (@ sender "user_id"))
+                                                     (a:ensure-gethash "nickname" sender ""))
+                                                 "")
+                                             " 掷骰 "
+                                             (caar res)
+                                             (when desc (s:fmt " (~a)" desc))
+                                             ":")
+                                ,@(loop for a in (cadr res)
+                                        collect (str:join "=" `(,(cadar res)
+                                                                ,(car a)
+                                                                ,(write-to-string (cadr a))))))))
+               (error () "掷骰失败"))))
+    (reply-to *napcat-websocket-client*
+              json (make-message msg) msg-type)))
+
+(register-command
+ (make-command :display-name "r"
+               :hidden nil
+               :short-usage "掷骰指令（默认d20）"
+               :cmd-face "r"
+               :options (list (make-option
+                               "expr"
+                               :predicator
+                               (lambda (opt)
+                                 (dice/dice-expr-leading-p (char opt 0)))
+                               :optional t)
+                              (make-option
+                               "desc"
+                               :optional t))
+               :action #'dice/cmd-roll
+               :usage
+"掷骰指令（默认d20）
+.r [重复次数#][掷骰表达式] [备注]
+掷骰表达式为掷骰单元及常数组成的算术表达式
+掷骰单元形如 [枚数]d[面数][h取高枚数][l取低枚数]
+例：
+    3d6+8
+    2d20h1
+    1d*3
+    d6-2
+需注意：
+  取高枚数与取低枚数最多有一项
+  取高枚数与取低枚数需小于总枚数
+另外，.rh 指令用于暗骰，但需要添加好友才能收到信息
+当掷骰较为简单时，可将枚数或运算合并至r上，如：
+    .r3  === .r 3d20
+    .r+2 === .r 1d20+2
+此功能与暗骰可同时生效，如：
+    .rh3 === .rh 3d20
+    .rh*2 === .rh 1d20*2
+但不支持括号，如 .r+(2*3) "))
+
+(register-command
+ (make-command :hidden t
+               :cmd-face "rh"
+               :options (list (make-option
+                               "expr"
+                               :predicator
+                               (lambda (opt)
+                                 (dice/dice-expr-leading-p (char opt 0)))
+                               :optional t)
+                              (make-option
+                               "desc"
+                               :optional t))
+               :action (lambda (&rest rest)
+                         (apply #'dice/cmd-roll (append rest (list :private t))))))
+
+(register-command
+ (make-command :hidden t
+               :cmd-face (lambda (cmd args kwargs)
+                           (multiple-value-bind (match arguments)
+                               (re:scan-to-strings "^r(h)?((\\d+)|([+\\-\\*/]\\d+))$" cmd)
+                             (when match
+                               (when (elt arguments 0)
+                                   (progn
+                                     (s:push-end :private kwargs)
+                                     (s:push-end t kwargs)))
+                               (when (elt arguments 1)
+                                 (s:push-end (s:fmt "~ad~a"
+                                                    (or (elt arguments 2) "")
+                                                    (or (elt arguments 3) ""))
+                                             args))
+                               (values t args kwargs))))
+               :options (list (make-option
+                               "desc"
+                               :optional t))
+               :action #'dice/cmd-roll))

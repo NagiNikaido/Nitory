@@ -104,22 +104,14 @@
       (file-error (c)
         (v:warn :khst "~a" c)))))
 
-(defun khst/cmd-remove (json args &key reply at &allow-other-keys)
-  (let ((msg-type (@ json "message_type"))
-        (res nil))
-    (if (string/= "group" msg-type)
-        (setf res "本指令仅在群聊中可用")
+(defun khst/cmd-remove (json rf &key reply at &allow-other-keys)
+  (let ((res nil))
+    (if rf ; It's an easter egg!
+        (setf res `(:image ,*khst-are-you-sure*
+                    :sub-type 1))
         (if (or (null reply)
-                (and at (/= at *self-id*))
-                (/= 1 (length args)))
-            (if (and (>= (length args) 2)
-                     (string= "-rf" (second args))) ; It's an easter egg!
-                (progn
-                  (reply-to *napcat-websocket-client*
-                            json (make-message `(:image ,*khst-are-you-sure*
-                                                 :sub-type 1)))
-                  (return-from khst/cmd-remove))
-                (setf res "格式错误"))
+                (and at (/= at *self-id*)))
+            (setf res "格式错误")
             (let ((history-line (@ *khst-history* reply)))
               (if (null history-line)
                   (setf res "* 未找到看话说图记录。是否回复错误？")
@@ -132,52 +124,79 @@
                                (setf res (s:fmt "* 已从关键词\"~a\"的条目中删除了该图片" keyword))
                                (v:info :khst "removed ~a from ~a:~a" entry keyword entries))
                         (setf res (s:fmt "* 该图片已不在关键词\"~a\"的条目中。是否已被删除？" keyword))))))))
-    (reply-to *napcat-websocket-client*
-              json (make-message res))))
+        (reply-to *napcat-websocket-client*
+                  json (make-message res))))
 
-(defun khst/cmd-khst (json args &key &allow-other-keys)
-  (let* ((msg-type (@ json "message_type"))
-         (message (@ json "message"))
+(defun khst/cmd-khst (json keyword &key &allow-other-keys)
+  (let* ((message (@ json "message"))
          (group-id (@ json "group_id"))
-         (user-id (@ json "user_id"))
-         (res nil))
-    (if (string/= "group" msg-type)
-        (setf res "本指令仅在群聊中可用")
-        (if (/= 2 (length args))
-            (setf res "格式错误")
-            (let ((keyword (elt args 1)))
-              (if (or (char= #\/ (char keyword 0))
-                      (char= #\. (char keyword 0)))
-                  (setf res (s:fmt "关键词不可以~a开头" (char keyword 0)))
-                   (let* ((sema (bt2:make-semaphore))
-                          (cb (lambda (njson)
-                                (let ((ngroup-id (@ njson "group_id"))
-                                      (nuser-id (@ njson "user_id"))
-                                      (nmsg (@ njson "message")))
-                                  (when (and (= ngroup-id group-id) (= nuser-id user-id))
-                                    (if (or (/= 1 (length message))
-                                            (string/= "image" (@ (first nmsg) "type")))
-                                        (reply-to *napcat-websocket-client*
-                                                  json (make-message "* 并非图片"))
-                                        (let ((file (@ (first nmsg) "data" "file"))
-                                              (uri (@ (first nmsg) "data" "url")))
-                                          (khst/save-remote-and-add-to-list keyword file uri)
-                                          (bt2:signal-semaphore sema))))))))
-                     (bt2:make-thread
-                      (lambda ()
-                        (v:debug :khst "in thread ~a" (bt2:current-thread))
-                        (reply-to *napcat-websocket-client*
-                                  json (make-message "* 等待添加图片中"))
-                        (on :message.group *napcat-websocket-client* cb)
-                        (let ((res (if (bt2:wait-on-semaphore sema :timeout 30)
-                                       (s:fmt "* 已收录~a~d" keyword
-                                               (length (@ *khst-lists* keyword)))
-                                       "* 已超时，取消收录")))
-                          (reply-to *napcat-websocket-client*
-                                    json (make-message res)))
-                        (v:debug :khst "removing cb ~a" cb)
-                        (remove-listener *napcat-websocket-client* :message.group cb))
-                      :name "khst timeout daemon"))))))
-    (when res
-      (reply-to *napcat-websocket-client*
-                json (make-message res)))))
+         (user-id (@ json "user_id")))
+    (let* ((sema (bt2:make-semaphore))
+           (cb (lambda (njson)
+                 (let ((ngroup-id (@ njson "group_id"))
+                       (nuser-id (@ njson "user_id"))
+                       (nmsg (@ njson "message")))
+                   (when (and (= ngroup-id group-id) (= nuser-id user-id))
+                     (if (or (/= 1 (length message))
+                             (string/= "image" (@ (first nmsg) "type")))
+                         (reply-to *napcat-websocket-client*
+                                   json (make-message "* 并非图片"))
+                         (let ((file (@ (first nmsg) "data" "file"))
+                               (uri (@ (first nmsg) "data" "url")))
+                           (khst/save-remote-and-add-to-list keyword file uri)
+                           (bt2:signal-semaphore sema))))))))
+      (bt2:make-thread
+       (lambda ()
+         (v:debug :khst "in thread ~a" (bt2:current-thread))
+         (reply-to *napcat-websocket-client*
+                   json (make-message "* 等待添加图片中"))
+         (on :message.group *napcat-websocket-client* cb)
+         (let ((res (if (bt2:wait-on-semaphore sema :timeout 30)
+                        (s:fmt "* 已收录~a~d" keyword
+                               (length (@ *khst-lists* keyword)))
+                        "* 已超时，取消收录")))
+           (reply-to *napcat-websocket-client*
+                     json (make-message res)))
+         (v:debug :khst "removing cb ~a" cb)
+         (remove-listener *napcat-websocket-client* :message.group cb))
+       :name "khst timeout daemon"))))
+
+(register-command
+ (make-command :display-name "rm"
+               :hidden nil
+               :msg-type :group
+               :short-usage "删除看话说图条目"
+               :cmd-face "rm"
+               :options (list (make-option
+                               "rf"
+                               :predicator
+                               (lambda (opt)
+                                 (string= "-rf" opt))
+                               :optional t))
+               :action #'khst/cmd-remove
+               :usage
+"删除看话说图条目
+选中 bot 发出的图回复 .rm 即可将该图从对应关键词中删除"))
+
+(register-command
+ (make-command :display-name "khst"
+               :hidden nil
+               :msg-type :group
+               :short-usage "看话说图"
+               :cmd-face "khst"
+               :options (list (make-option
+                               "keyword"
+                               :predicator
+                               (lambda (opt)
+                                 (when (command-string-p opt)
+                                     (error 'command-parse-error
+                                            :error-type :wrong-argument
+                                            :error-message "关键词不可以.或/开头"))
+                                 t)))
+               :action #'khst/cmd-khst
+               :usage
+"看话说图
+.khst [关键词]  为关键词添加随机图片项
+输入指令后 bot 会进入交互模式，等待输入指令者发出图片。
+交互过程最长为30秒，超时会中断交互。
+添加完成后，再次输入关键词，bot 便会从已添加的所有图片中随机选取一张发出。"))

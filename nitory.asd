@@ -52,9 +52,11 @@
       :serial t
       :components
       ((:file "event-bus")
-       (:file "message")))
+       (:file "message")
+       (:file "command")))
      (:file "utils")
      (:file "napcat")
+     (:file "help")
      (:file "nick")
      (:file "dice")
      (:file "khst-easter-egg")
@@ -80,6 +82,7 @@
     :serial t
     :components
     ((:file "package")
+     (:file "command-test")
      (:file "napcat-test")
      (:file "nitory-test"))))
   :perform (asdf:test-op (o c)

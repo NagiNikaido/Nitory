@@ -175,23 +175,25 @@
 
 (defun event/receive-command (json)
   (v:debug :main "~a" (split-reply (@ json "message")))
-  (multiple-value-bind (reply-id at-id message)
+  (multiple-value-bind (reply-id at-id msg)
       (values-list (split-reply (@ json "message")))
-    (when (and (= 1 (length message))
-               (string= "text" (@ (first message) "type")))
-      (let* ((raw-msg (str:trim (@ (first message) "data" "text")))
-             (leading (char raw-msg 0)))
-        (when (or (char= #\/ leading)
-                  (char= #\. leading)) ; it is a command
-          (let* ((args (str:words (subseq raw-msg 1)))
-                 (cmd (car args)))
-            (cond
-              ((string= "help" cmd) (nitory/cmd-help json args))
-              ((re:scan "^rh?([+-]\\d+|\\d+)?$" cmd) (dice/cmd-roll json args))
-              ((string= "nn" cmd) (nick/cmd-set-nick json args))
-              ((string= "khst" cmd) (khst/cmd-khst json args))
-              ((string= "rm" cmd) (khst/cmd-remove json args :reply reply-id :at at-id))
-              (t (nitory/cmd-not-supported json args)))))))))
+    (when (and (= 1 (length msg))
+               (string= "text" (@ (first msg) "type")))
+      (let ((raw-msg (str:trim (@ (first msg) "data" "text"))))
+        (when (command-string-p raw-msg)
+          (let ((raw-args (str:words (subseq raw-msg 1))))
+            (handler-case
+                (unless (loop for cmd in *commands*
+                              when (parse-command cmd json raw-args :reply reply-id
+                                                                    :at at-id)
+                                return t
+                              end)
+                  (nitory/cmd-not-supported json raw-args))
+              (command-parse-error (c)
+                (reply-to *napcat-websocket-client*
+                          json (make-message
+                                (or (error-message c)
+                                    (s:fmt "告诉他我的系统出问题了"))))))))))))
 
 (defun nitory/print-help (rest)
   (s:fmt
