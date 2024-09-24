@@ -98,4 +98,8 @@
                                    t))
                                :optional t))
                :action #'nick/cmd-set-nick
-               :usage ""))
+               :usage
+"设置昵称
+.nn [新昵称]  将昵称设置为新昵称
+默认昵称为QQ昵称
+如将新昵称留空，则将当前昵称恢复为默认昵称"))

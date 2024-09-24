@@ -295,7 +295,27 @@
                                "desc"
                                :optional t))
                :action #'dice/cmd-roll
-               :usage ""))
+               :usage
+"掷骰指令（默认d20）
+.r [重复次数#][掷骰表达式] [备注]
+掷骰表达式为掷骰单元及常数组成的算术表达式
+掷骰单元形如 [枚数]d[面数][h取高枚数][l取低枚数]
+例：
+    3d6+8
+    2d20h1
+    1d*3
+    d6-2
+需注意：
+  取高枚数与取低枚数最多有一项
+  取高枚数与取低枚数需小于总枚数
+另外，.rh 指令用于暗骰，但需要添加好友才能收到信息
+当掷骰较为简单时，可将枚数或运算合并至r上，如：
+    .r3  === .r 3d20
+    .r+2 === .r 1d20+2
+此功能与暗骰可同时生效，如：
+    .rh3 === .rh 3d20
+    .rh*2 === .rh 1d20*2
+但不支持括号，如 .r+(2*3) "))
 
 (register-command
  (make-command :hidden t
@@ -316,12 +336,17 @@
  (make-command :hidden t
                :cmd-face (lambda (cmd args kwargs)
                            (multiple-value-bind (match arguments)
-                               (re:scan-to-strings "^r((\\d+)|([+-]\\d+))$" cmd)
+                               (re:scan-to-strings "^r(h)?((\\d+)|([+\\-\\*/]\\d+))$" cmd)
                              (when match
-                               (s:push-end (s:fmt "~ad~a"
-                                                  (or (elt arguments 1) "")
-                                                  (or (elt arguments 2) ""))
-                                           args)
+                               (when (elt arguments 0)
+                                   (progn
+                                     (s:push-end :private kwargs)
+                                     (s:push-end t kwargs)))
+                               (when (elt arguments 1)
+                                 (s:push-end (s:fmt "~ad~a"
+                                                    (or (elt arguments 2) "")
+                                                    (or (elt arguments 3) ""))
+                                             args))
                                (values t args kwargs))))
                :options (list (make-option
                                "desc"

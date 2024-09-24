@@ -54,4 +54,6 @@
   :options (list (make-option "cmd"
 		  :optional t))
   :action #'help/print-help
-  :usage ""))
+  :usage
+"帮助指令
+.help [指令] 可查看对应指令的详细说明"))

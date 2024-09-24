@@ -243,7 +243,7 @@
  (make-command :display-name "rm"
                :hidden nil
                :msg-type :group
-               :short-usage "删除看画说图条目"
+               :short-usage "删除看话说图条目"
                :cmd-face "rm"
                :options (list (make-option
                                "rf"
@@ -252,13 +252,15 @@
                                  (string= "-rf" opt))
                                :optional t))
                :action #'khst/cmd-remove
-               :usage ""))
+               :usage
+"删除看话说图条目
+选中 bot 发出的图回复 .rm 即可将该图从对应关键词中删除"))
 
 (register-command
  (make-command :display-name "khst"
                :hidden nil
                :msg-type :group
-               :short-usage "看画说图"
+               :short-usage "看话说图"
                :cmd-face "khst"
                :options (list (make-option
                                "keyword"
@@ -270,4 +272,9 @@
                                             :error-message "关键词不可以.或/开头"))
                                  t)))
                :action #'khst/cmd-khst
-               :usage ""))
+               :usage
+"看话说图
+.khst [关键词]  为关键词添加随机图片项
+输入指令后 bot 会进入交互模式，等待输入指令者发出图片。
+交互过程最长为30秒，超时会中断交互。
+添加完成后，再次输入关键词，bot 便会从已添加的所有图片中随机选取一张发出。"))
