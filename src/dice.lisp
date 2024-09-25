@@ -260,7 +260,7 @@
 (export-always 'dice/roll-dice)
 (defun dice/roll-dice (expr &optional desc sender)
   (handler-case
-      (let* ((expr-tree (dice/parse-dice-full-expr expr))
+      (let* ((expr-tree (dice/parse-dice-full-expr (or expr "")))
              (res (dice/exec-dice-tree expr-tree)))
         (str:join #\newline
                   `(,(str:concat (if sender
@@ -294,7 +294,8 @@
                                "expr"
                                :predicator
                                (lambda (opt)
-                                 (dice/dice-expr-leading-p (char opt 0)))
+                                 (and (stringp opt)
+                                      (dice/dice-expr-leading-p (char opt 0))))
                                :optional t)
                               (make-option
                                "desc"
@@ -337,7 +338,8 @@
                                "expr"
                                :predicator
                                (lambda (opt)
-                                 (dice/dice-expr-leading-p (char opt 0)))
+                                 (and (stringp opt)
+                                      (dice/dice-expr-leading-p (char opt 0))))
                                :optional t)
                               (make-option
                                "desc"
