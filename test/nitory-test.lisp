@@ -82,7 +82,8 @@
   (print-roll "3a15")
   (print-roll "3b5")
   (print-roll "3d10a8e10")
-  (print-roll "3d10b3e1"))
+  (print-roll "3d10b3e1")
+  (print-roll nil))
 
 (defun run-all-tests ()
   (run :nitory/test))

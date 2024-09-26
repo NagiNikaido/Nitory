@@ -175,51 +175,42 @@
       `(:repeat  ,(if regs (parse-integer (elt regs 0)) 1) (,expr ,single-expr) ,(car post)))))
 
 (defun dice/%pretty-concat (list selected)
-  (s:fmt "{~a}"
-         (str:join
-          ""
-          (loop with first? = t
-                with previous-selected = nil
-                with s
-                for d in list
-                for i = 0 then (incf i)
-                do (setf s (typecase selected
-                             (sequence (elt selected i))
-                             (function (funcall selected i))))
-                collect (s:fmt "~a~a~a~d"
-                               (if (and previous-selected (not s))
-                                   "]" "")
-                               (if first? "" ",")
-                               (if (and (not previous-selected) s)
-                                   "[" "")
-                               d) into dice-list
-                do (setf first? nil)
-                do (setf previous-selected s)
-                finally (return
-                          (if previous-selected
-                              (s:append1 dice-list "]")
-                              dice-list))))))
+  (s:fmt "{~{~a~}}"
+         (loop with first? = t
+               with previous-selected = nil
+               with s
+               for d in list
+               for i = 0 then (incf i)
+               do (setf s (typecase selected
+                            (sequence (elt selected i))
+                            (function (funcall selected i))))
+               collect (s:fmt "~@[]~1*~]~@[,~1*~]~@[[~1*~]~d"
+                              (and previous-selected (not s))
+                              (not first?)
+                              (and (not previous-selected) s)
+                              d) into dice-list
+               do (setf first? nil)
+               do (setf previous-selected s)
+               finally (return
+                         (if previous-selected
+                             (s:append1 dice-list "]")
+                             dice-list)))))
 
 (export-always 'dice/generate-dices)
 (defun dice/generate-dices (&key (dice 1) (face 20) (high nil) (low nil)
                             (lb nil) (ub nil) (extra nil) &allow-other-keys)
-  (let ((rolled (loop repeat dice collect (1+ (random face)))))
-    (when extra
-      (flet ((extra-p (cd)
+  (let ((rolled
+          (if (not extra)
+              (loop repeat dice collect (1+ (random face)))
+              (flet ((extra-p (cd)
                (if ub
                    (<= cd extra)
                    (>= cd extra))))
-       (loop with q = (apply #'s:queue rolled)
-             with cd
-             with nd
-             until (s:queue-empty-p q)
-             do (setf cd (s:front q))
-             do (s:deq q)
-             if (extra-p cd)
-               do (setf nd (1+ (random face)))
-               and do (setf rolled (s:append1 rolled nd))
-               and do (s:enq nd q)
-             end)))
+                (loop with nd
+                      for i from 1 to dice
+                      do (setf nd (1+ (random face)))
+                      if (extra-p nd) do (decf i)
+                      collect nd)))))
     (cond
       (high (let ((sorted (sort rolled #'>)))
               `(,(dice/%pretty-concat sorted (lambda (i) (< i high)))
@@ -231,7 +222,7 @@
             ,(count-if (lambda (x) (>= x lb)) rolled)))
       (ub `(,(dice/%pretty-concat rolled (mapcar (lambda (x) (<= x ub)) rolled))
             ,(count-if (lambda (x) (<= x ub)) rolled)))
-      (t `(,(s:fmt "{~a}" (str:join "," (mapcar #'write-to-string rolled)))
+      (t `(,(s:fmt "{~{~d~^,~}}" rolled)
            ,(reduce #'+ rolled))))))
 
 (export-always 'dice/exec-dice-tree)
@@ -260,21 +251,17 @@
 (export-always 'dice/roll-dice)
 (defun dice/roll-dice (expr &optional desc sender)
   (handler-case
-      (let* ((expr-tree (dice/parse-dice-full-expr expr))
+      (let* ((expr-tree (dice/parse-dice-full-expr (or expr "")))
              (res (dice/exec-dice-tree expr-tree)))
-        (str:join #\newline
-                  `(,(str:concat (if sender
-                                     (or (nick/get-nick (@ sender "user_id"))
-                                         (a:ensure-gethash "nickname" sender ""))
-                                     "")
-                                 " 掷骰 "
-                                 (caar res)
-                                 (when desc (s:fmt " (~a)" desc))
-                                 ":")
-                    ,@(loop for a in (cadr res)
-                            collect (str:join "=" `(,(cadar res)
-                                                    ,(car a)
-                                                    ,(write-to-string (cadr a))))))))
+        (s:fmt "~@[~a~] 掷骰 ~@[~a~] ~@[(~a)~]:~%~{~{~a~^=~}~%~}"
+               (when sender (or (nick/get-nick (@ sender "user_id"))
+                                (@ sender "nickname")))
+               (caar res)
+               desc
+               (loop for a in (cadr res)
+                     collect (list (cadar res)
+                                   (car a)
+                                   (cadr a)))))
     (error () "掷骰失败")))
 
 (export-always 'dice/cmd-roll)
@@ -294,7 +281,8 @@
                                "expr"
                                :predicator
                                (lambda (opt)
-                                 (dice/dice-expr-leading-p (char opt 0)))
+                                 (and (stringp opt)
+                                      (dice/dice-expr-leading-p (char opt 0))))
                                :optional t)
                               (make-option
                                "desc"
@@ -337,7 +325,8 @@
                                "expr"
                                :predicator
                                (lambda (opt)
-                                 (dice/dice-expr-leading-p (char opt 0)))
+                                 (and (stringp opt)
+                                      (dice/dice-expr-leading-p (char opt 0))))
                                :optional t)
                               (make-option
                                "desc"
