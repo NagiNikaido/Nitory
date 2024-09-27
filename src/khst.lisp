@@ -20,57 +20,23 @@
 
 (in-package #:nitory)
 
-(defvar *khst-lists* (make-hash-table))
-(defvar *khst-history* (make-hash-table))
-(defvar *khst-lists-path* nil)
-(defvar *khst-history-path* nil)
+(defvar *khst-lists* nil)
+(defvar *khst-history* nil)
 (defvar *khst-pic-prefix* nil)
 
 (defun khst/enable-khst ()
-  (setf *khst-lists-path* (merge-pathnames "khst-lists" *prefix*))
-  (setf *khst-history-path* (merge-pathnames "khst-history" *prefix*))
+  (setf *khst-lists* (register-db "khst-lists"))
+  (setf *khst-history* (register-db "khst-history"))
   (setf *khst-pic-prefix* (merge-pathnames "pics/" *prefix*))
-  (ensure-directories-exist *khst-lists-path*)
-  (ensure-directories-exist *khst-history-path*)
-  (handler-case
-      (with-open-file (s *khst-lists-path*
-			 :direction :input
-			 :if-does-not-exist :error)
-	(setf *khst-lists* (a:plist-hash-table (read s) :test #'equal)))
-    (error (c)
-      (v:warn :khst "~a" c)))
-  (handler-case
-      (with-open-file (s *khst-history-path*
-                         :direction :input
-                         :if-does-not-exist :error)
-        (setf *khst-history* (a:plist-hash-table (read s) :test #'equal)))
-    (error (c)
-      (v:warn :khst "~a" c)))
   (on :message.group *napcat-websocket-client*
-      #'khst/capture-keyword-and-respond-image)
-  (on :meta-event.heartbeat *napcat-websocket-client*
-      (lambda (json) (khst/save-list))))
-
-(defun khst/save-list ()
-  (with-open-file (s *khst-lists-path*
-		     :direction :output
-		     :if-exists :supersede)
-    (v:info :khst "Saving khst lists...")
-    (unwind-protect (print (a:hash-table-plist *khst-lists*) s))
-    (v:info :khst "Done."))
-  (with-open-file (s *khst-history-path*
-                     :direction :output
-                     :if-exists :supersede)
-    (v:info :khst "Saving khst history...")
-    (unwind-protect (print (a:hash-table-plist *khst-history*) s))
-    (v:info :khst "Done.")))
+      #'khst/capture-keyword-and-respond-image))
 
 (defun khst/capture-keyword-and-respond-image (json)
   (let ((message (@ json "message")))
     (when (and (= 1 (length message))
                (string= "text" (@ (first message) "type")))
       (let* ((raw-msg (@ (first message) "data" "text"))
-             (entries (@ *khst-lists* raw-msg)))
+             (entries (db/@ *khst-lists* raw-msg)))
         (v:debug :khst "Seeking keywords ~a in: ~a" raw-msg entries)
         (when entries
           (let ((entry (elt entries (random (length entries)))))
@@ -80,24 +46,24 @@
                                                                :sub-type 1)))))
                      (let ((msg-id (@ response "message_id")))
                        (v:info :khst "Saving history line ~a:(~a ~a)" msg-id raw-msg entry)
-                       (setf (@ *khst-history* msg-id)
+                       (setf (db/@ *khst-history* msg-id)
                              (list raw-msg entry))))))))))
 
 (defun khst/save-and-add-to-list (keyword picture)
   (let ((filename (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
-    (unless (@ *khst-lists* keyword)
-      (setf (@ *khst-lists* keyword) nil))
-    (unless (find (namestring filename) (@ *khst-lists* keyword) :test #'equal)
-      (push (namestring filename) (@ *khst-lists* keyword)))
+    (unless (db/@ *khst-lists* keyword)
+      (setf (db/@ *khst-lists* keyword) nil))
+    (unless (find (namestring filename) (db/@ *khst-lists* keyword) :test #'equal)
+      (push (namestring filename) (db/@ *khst-lists* keyword)))
     (ensure-directories-exist filename)
     (uiop:copy-file picture filename)))
 
 (defun khst/save-remote-and-add-to-list (keyword picture uri)
   (let ((dest (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
-    (unless (@ *khst-lists* keyword)
-      (setf (@ *khst-lists* keyword) nil))
-    (unless (find (namestring dest) (@ *khst-lists* keyword) :test #'equal)
-      (push (namestring dest) (@ *khst-lists* keyword)))
+    (unless (db/@ *khst-lists* keyword)
+      (setf (db/@ *khst-lists* keyword) nil))
+    (unless (find (namestring dest) (db/@ *khst-lists* keyword) :test #'equal)
+      (push (namestring dest) (db/@ *khst-lists* keyword)))
     (ensure-directories-exist dest)
     (handler-case
         (dex:fetch uri dest)
@@ -112,14 +78,14 @@
         (if (or (null reply)
                 (and at (/= at *self-id*)))
             (setf res "格式错误")
-            (let ((history-line (@ *khst-history* reply)))
+            (let ((history-line (db/@ *khst-history* reply)))
               (if (null history-line)
                   (setf res "* 未找到看话说图记录。是否回复错误？")
                   (let* ((keyword (first history-line))
                          (entry (second history-line))
-                         (entries (@ *khst-lists* keyword)))
+                         (entries (db/@ *khst-lists* keyword)))
                     (if (find entry entries :test #'equal)
-                        (progn (setf (@ *khst-lists* keyword)
+                        (progn (setf (db/@ *khst-lists* keyword)
                                      (remove entry entries))
                                (setf res (s:fmt "* 已从关键词\"~a\"的条目中删除了该图片" keyword))
                                (v:info :khst "removed ~a from ~a:~a" entry keyword entries))
@@ -153,7 +119,7 @@
          (on :message.group *napcat-websocket-client* cb)
          (let ((res (if (bt2:wait-on-semaphore sema :timeout 30)
                         (s:fmt "* 已收录~a~d" keyword
-                               (length (@ *khst-lists* keyword)))
+                               (length (db/@ *khst-lists* keyword)))
                         "* 已超时，取消收录")))
            (reply-to *napcat-websocket-client*
                      json (make-message res)))
