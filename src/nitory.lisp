@@ -120,6 +120,7 @@
   (v:info :main "Updating event emitter.")
   (on :message *napcat-websocket-client* #'event/receive-command)
   (on :request *napcat-websocket-client* #'event/receive-request)
+  (on :meta-event.heartbeat *napcat-websocket-client* (lambda (&rest rest) (db/save-dbs) (values)))
   (v:info :main "Enable nickname service.")
   (nick/enable-nick)
   (khst/enable-khst)
@@ -133,8 +134,7 @@
 
 (defun nitory/cleanup ()
   (v:info :main "Exiting.")
-  (nick/save-nicks)
-  (khst/save-list)
+  (db/save-dbs)
   (v:stop v:*global-controller*))
 
 (defun main ()

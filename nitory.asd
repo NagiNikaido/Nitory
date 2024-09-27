@@ -53,7 +53,8 @@
       :components
       ((:file "event-bus")
        (:file "message")
-       (:file "command")))
+       (:file "command")
+       (:file "database")))
      (:file "utils")
      (:file "napcat")
      (:file "help")
