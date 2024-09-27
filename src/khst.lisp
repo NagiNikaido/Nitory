@@ -56,7 +56,8 @@
     (unless (find (namestring filename) (db/@ *khst-lists* keyword) :test #'equal)
       (push (namestring filename) (db/@ *khst-lists* keyword)))
     (ensure-directories-exist filename)
-    (uiop:copy-file picture filename)))
+    (uiop:copy-file picture filename)
+    (namestring filename)))
 
 (defun khst/save-remote-and-add-to-list (keyword picture uri)
   (let ((dest (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
@@ -68,7 +69,8 @@
     (handler-case
         (dex:fetch uri dest)
       (file-error (c)
-        (v:warn :khst "~a" c)))))
+        (v:warn :khst "~a" c)))
+    (namestring dest)))
 
 (defun khst/cmd-remove (json rf &key reply at &allow-other-keys)
   (let ((res nil))
@@ -109,7 +111,8 @@
                                    json (make-message "* 并非图片"))
                          (let ((file (@ (first nmsg) "data" "file"))
                                (uri (@ (first nmsg) "data" "url")))
-                           (khst/save-remote-and-add-to-list keyword file uri)
+                           (setf (db/@ *khst-history* (@ njson "message_id"))
+                             (list keyword (khst/save-remote-and-add-to-list keyword file uri)))
                            (bt2:signal-semaphore sema))))))))
       (bt2:make-thread
        (lambda ()
