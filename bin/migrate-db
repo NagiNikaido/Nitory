@@ -30,6 +30,6 @@
                        :direction :output
 		       :if-exists :supersede)
 	      (print (hash-table-dict db) s))))
-
-(assert (= 1 (length (uiop:command-line-arguments))))
-(migrate-db (car (uiop:command-line-arguments)))
+	      
+(loop for db in (uiop:command-line-arguments)
+      do (migrate-db db))

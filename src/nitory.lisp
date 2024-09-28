@@ -181,6 +181,7 @@
                (string= "text" (@ (first msg) "type")))
       (let ((raw-msg (str:trim (@ (first msg) "data" "text"))))
         (when (command-string-p raw-msg)
+          (v:debug :main "Received command: ~a" raw-msg)
           (let ((raw-args (str:words (subseq raw-msg 1))))
             (handler-case
                 (unless (loop for cmd in *commands*
@@ -194,23 +195,6 @@
                           json (make-message
                                 (or (error-message c)
                                     (s:fmt "告诉他我的系统出问题了"))))))))))))
-
-(defun nitory/print-help (rest)
-  (s:fmt
-"Project-Nitory v~a by NagiNikaido
-启动于 ~a
-指令列表:
-.r: 掷骰指令（默认d20）
-.nn: 设置昵称
-.khst: 看话说图
-.rm: 删除看话说图条目
-.help: 显示本帮助
-更多功能开发中" +version+ *startup-timestamp*))
-
-(defun nitory/cmd-help (json args &key &allow-other-keys)
-  (let* ((msg (nitory/print-help args)))
-    (reply-to *napcat-websocket-client*
-              json (make-message msg))))
 
 (defun nitory/cmd-not-supported (json args &key &allow-other-keys)
   (let* ((msg "无效指令"))

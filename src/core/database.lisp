@@ -21,7 +21,7 @@
 (in-package #:nitory)
 
 (defclass database ()
-  ((db :initform (make-hash-table)
+  ((db :initform (make-hash-table :test #'equal)
        :accessor db)
    (name :initarg :name
 	 :accessor name)
@@ -37,7 +37,7 @@
 		 :path path))
 
 (defmethod db/@ ((dbi database) &rest keys)
-  (apply #'s:href (db dbi) keys))
+  (apply #'s:href-default nil (db dbi) keys))
 
 (defmethod (setf db/@) (value (dbi database) key &rest keys)
   (s:nlet rec ((table (db dbi))

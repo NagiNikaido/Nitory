@@ -60,8 +60,8 @@
                                (lambda (opt)
                                  (when (command-string-p opt)
                                    (error 'command-parse-error :error-type :wrong-argument
-                                          :error-message "昵称不可以.或/开头")
-                                   t))
+                                          :error-message "昵称不可以.或/开头"))
+                                   t)
                                :optional t))
                :action #'nick/cmd-set-nick
                :usage
