@@ -1,0 +1,35 @@
+#!/usr/bin/env -S sbcl --script
+
+(require :uiop)
+
+(load "~/.sbclrc")
+(ql:quickload '("alexandria" "serapeum" "str") :silent t)
+
+(serapeum:-> hash-table-dict (hash-table) list)
+(defun hash-table-dict (table)
+ `(serapeum:dict
+   ',(hash-table-test table)
+   ,@(loop for key being the hash-keys of table
+           using (hash-value value)
+         collect key
+         collect (typecase value
+                   (hash-table (hash-table-dict value))
+                   (number value)
+                   (string value)
+                   (array value)
+                   (list `',value)
+                   (symbol `',value)
+                   (t (error "Unsupported object type: ~A" (type-of value)))))))
+
+(defun migrate-db (name)
+  (let ((db (with-open-file (s name
+                               :direction :input
+		               :if-does-not-exist :error)
+              (alexandria:plist-hash-table (read s) :test #'equal))))
+    (with-open-file (s (str:concat name ".new")
+                       :direction :output
+		       :if-exists :supersede)
+	      (print (hash-table-dict db) s))))
+
+(assert (= 1 (length (uiop:command-line-arguments))))
+(migrate-db (car (uiop:command-line-arguments)))
