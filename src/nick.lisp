@@ -20,37 +20,20 @@
 
 (in-package #:nitory)
 
-(defvar *nicknames* (make-hash-table))
+(defvar *nicknames* nil)
 (defvar *nick-path* nil)
 
 (defun nick/enable-nick ()
-  (setf *nick-path* (merge-pathnames *prefix* "nicknames"))
-  (ensure-directories-exist *nick-path*)
-  (handler-case
-      (with-open-file (s *nick-path*
-			 :direction :input
-			 :if-does-not-exist :error)
-	(setf *nicknames* (a:plist-hash-table (read s) :test #'equal)))
-    (error (c)
-      (v:warn :nick "~a" c)))
-  (on :meta-event.heartbeat *napcat-websocket-client* (lambda (json) (nick/save-nicks))))
-
-(defun nick/save-nicks ()
-  (with-open-file (s *nick-path*
-		     :direction :output
-		     :if-exists :supersede)
-    (v:info :nick "Saving nicknames...")
-    (unwind-protect (print (a:hash-table-plist *nicknames*) s))
-    (v:info :nick "Done.")))
+  (setf *nicknames* (register-db "nicknames")))
 
 (defun nick/get-nick (user-id)
-  (@ *nicknames* user-id))
+  (db/@ *nicknames* user-id))
 
 (defun nick/set-nick (user-id nick)
-  (setf (@ *nicknames* user-id) nick))
+  (setf (db/@ *nicknames* user-id) nick))
 
 (defun nick/rm-nick (user-id)
-  (remhash user-id *nicknames*))
+  (remhash user-id (db *nicknames*)))
 
 (defun nick/cmd-set-nick (json nickname &key &allow-other-keys)
   (let* ((user-id (@ json "user_id"))
@@ -77,8 +60,8 @@
                                (lambda (opt)
                                  (when (command-string-p opt)
                                    (error 'command-parse-error :error-type :wrong-argument
-                                          :error-message "昵称不可以.或/开头")
-                                   t))
+                                          :error-message "昵称不可以.或/开头"))
+                                   t)
                                :optional t))
                :action #'nick/cmd-set-nick
                :usage

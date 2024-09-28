@@ -31,7 +31,7 @@
 (sb-ext:lock-package :nitory)
 
 (in-package :nitory)
-(defvar *imports* '((:serapeum #:-> #:@ #:export-always)))
+(defvar *imports* '((:serapeum #:-> #:@ #:export-always #:dict)))
 (loop for (package . symbols) in *imports*
       do (import (mapcar (lambda (symbol) (intern (symbol-name symbol) package))
                          symbols)
