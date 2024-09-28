@@ -21,7 +21,7 @@ bump: bump-version
 	temp=$$(cat VERSION)
 	temp="$${temp%\"}"
 	temp="$${temp#\"}"
-	git tag $$temp
+	git tag -a v$$temp
 
 bump-version:
 	./bin/bump_version ${v}
