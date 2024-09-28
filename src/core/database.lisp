@@ -43,15 +43,34 @@
   (s:nlet rec ((table (db dbi))
 	       (keys (cons key keys)))
     (if (rest keys)
-	(rec (gethash (car keys) table) (cdr keys))
+	(progn
+          (unless (gethash (car keys) table)
+            (setf (gethash (car keys) table) (make-hash-table :test 'equal)))
+          (rec (gethash (car keys) table) (cdr keys)))
 	(setf (gethash (car keys) table) value))))
+
+(-> hash-table-dict (hash-table) list)
+(defun hash-table-dict (table)
+ `(dict
+   ',(hash-table-test table)
+   ,@(loop for key being the hash-keys of table
+           using (hash-value value)
+         collect key
+         collect (typecase value
+                   (hash-table (hash-table-dict value))
+                   (number value)
+                   (string value)
+                   (array value)
+                   (list `',value)
+                   (symbol `',value)
+                   (t (error "Unsupported object type: ~A" (type-of value)))))))
 
 (defmethod load-db ((dbi database))
   (ensure-directories-exist (path dbi))
   (with-open-file (s (path dbi)
 		     :direction :input
 		     :if-does-not-exist :error)
-    (setf (db dbi) (a:plist-hash-table (read s) :test #'equal))))
+    (setf (db dbi) (eval (read s)))))
 
 (defmethod save-db ((dbi database))
   (ensure-directories-exist (path dbi))
@@ -59,7 +78,7 @@
 		     :direction :output
 		     :if-exists :supersede)
     (v:info :db "Saving ~a..." (name dbi))
-    (unwind-protect (print (a:hash-table-plist (db dbi)) s))
+    (unwind-protect (print (hash-table-dict (db dbi)) s))
     (v:info :db "Done.")))
 
 (defparameter *dbs* nil)
