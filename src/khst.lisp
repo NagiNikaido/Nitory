@@ -74,6 +74,8 @@
               (reply-to *napcat-websocket-client*
                         json (make-message (error-message c))))))))))
 
+
+
 (defun khst/save-and-add-to-list (keyword picture)
   (let ((filename (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
     (unless (db/@ *khst-lists* keyword)
@@ -83,17 +85,36 @@
     (uiop:copy-file picture filename)
     (namestring filename)))
 
+;; (defun khst/save-remote-and-add-to-list (keyword picture uri)
+;;   (let ((dest (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
+;;     (unless (db/@ *khst-lists* keyword)
+;;       (setf (db/@ *khst-lists* keyword) nil))
+;;     (pushnew (namestring dest) (db/@ *khst-lists* keyword) :test #'equal)
+;;     (ensure-directories-exist dest)
+;;     (handler-case
+;;         (dex:fetch uri dest)
+;;       (file-error (c)
+;;         (v:warn :khst "~a" c)))
+;;     (namestring dest)))
+
 (defun khst/save-remote-and-add-to-list (keyword picture uri)
-  (let ((dest (merge-pathnames (file-namestring picture) *khst-pic-prefix*)))
-    (unless (db/@ *khst-lists* keyword)
-      (setf (db/@ *khst-lists* keyword) nil))
-    (pushnew (namestring dest) (db/@ *khst-lists* keyword) :test #'equal)
-    (ensure-directories-exist dest)
+  (let ((temp-dest (s:fmt "/tmp/nitory-~a" (random 10000))))
     (handler-case
-        (dex:fetch uri dest)
+        (progn
+          (dex:fetch uri temp-dest)
+          (let* ((ext (pathname-type picture))
+                 (shorter-filename (ironclad:byte-array-to-hex-string
+                                    (ironclad:digest-file :sha1 temp-dest)))
+                 (filename (merge-pathnames (make-pathname :name shorter-filename
+                                                           :type ext)
+                                            *khst-pic-prefix*)))
+            (unless (db/@ *khst-lists* keyword)
+              (setf (db/@ *khst-lists* keyword) nil))
+            (pushnew (namestring filename) (db/@ *khst-lists* keyword) :test #'equal)
+            (ensure-directories-exist filename)
+            (uiop:copy-file temp-dest filename)))
       (file-error (c)
-        (v:warn :khst "~a" c)))
-    (namestring dest)))
+        (v:warn :khst "~a" c)))))
 
 (defun khst/%probe-tag (tags pos)
   (loop for i from pos to (1- (length tags))

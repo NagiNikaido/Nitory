@@ -186,6 +186,50 @@
                                                 (:echo . ,serial)))))
         (t (wsd:send-text (client napcat-instance) data))))))
 
+
+;;; The NapCat API list
+;;;   Below is an evil transformation from NapCat API names & parameter models to
+;;; corresponding common lisp function name & parameter models.
+;;;
+;;;   The NapCat side, which follows the Onebot v11 protocol, expects the following
+;;; format API request
+;;;
+;;;  {
+;;;     "action": api_name_here,
+;;;     "params": { params_dict_here },
+;;;     "echo": an_optinal_serial_number
+;;;  }
+;;;
+;;;   and there is a corresponding list between API names and expecting parameter
+;;; models (and possible response values, which are omitted here), e.g.
+;;;
+;;;     forward_friend_single_msg   {"message_id": int, "user_id": int}
+;;;
+;;; or with an optional parameter
+;;;
+;;;     reboot_normal               {"delay": optional[int]}
+;;;
+;;;   Since there are dozens of such APIs, I prefer automatically converting the
+;;; corresponding list into the definition of common lisp methods. The local macro
+;;; %APIS does exactly the thing by iterating over the corresponding list and:
+;;;
+;;;     1. converting API name "api_name_here" to a corresponding method name
+;;;   "DO-API-NAME-HERE";
+;;;
+;;;     2. defining a class method DO-API-NAME-HERE accecpting an alist PARAMS
+;;;   that fits PARAM-MODEL of the API.
+;;;
+;;;     2.1. ALIST-SIM-P is used here to check whether PARAMS fits PARAM-MODEL.
+;;;
+;;;     2.2. Once the check is passed, DO-API-NAME-HERE will call SEND-DATA to
+;;;   send the request, and further returns a promise wrapping the response.
+;;;
+;;;   After this transformation, we can use
+;;;
+;;;     (DO-REBOOT-NORMAL napcat-instance '((:delay . 10)))
+;;;
+;;;   to send a "reboot_normal" request. Hooray!
+
 (macrolet ((%apis (&rest api-list)
              (flet ((%append-api (api param-model)
                       (let ((sym (to-sym (str:concat "do-" api))))
