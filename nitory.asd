@@ -32,6 +32,7 @@
                "bordeaux-threads"
                "cl-ppcre"
                "dexador"
+               "ironclad"
                "local-time"
                "serapeum"
                "str"
