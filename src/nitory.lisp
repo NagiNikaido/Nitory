@@ -160,7 +160,9 @@
     (v:debug :main "~a" (@ at? "type"))
     (if (and at?
              (string= "at" (@ at? "type")))
-        (list (parse-integer (@ at? "data" "qq"))
+        (list (if (string= "all" (@ at? "data" "qq"))
+                  "all"
+                  (parse-integer (@ at? "data" "qq")))
               (cdr message))
         (list nil message))))
 
