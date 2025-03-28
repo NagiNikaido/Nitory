@@ -25,6 +25,7 @@
 (setf *random-state* (make-random-state t))
 (setf re:*allow-named-registers* t)
 (setf v:*process-locally* t)
+(setf cl+ssl:*make-ssl-client-stream-verify-default* nil)
 
 (defvar *napcat-websocket-client* nil)
 (defvar *timestring-format* '(:year #\/ (:month 2) #\/ (:day 2) #\  (:hour 2) #\: (:min 2) #\: (:sec 2) " GMT" :gmt-offset))
@@ -32,6 +33,26 @@
 (defvar *admin* nil)
 (defvar *prefix* "/opt/nitory/")
 (defvar *self-id* nil)
+(defvar *admin-email-address* nil)
+(defvar *nitory-email-address* nil)
+(defvar *nitory-email-password* nil)
+(defvar *nitory-email-server* nil)
+(defvar *nitory-email-ssl* :tls)
+(defvar *main-thread* nil)
+
+(defmacro bind-envvar (&rest var-list)
+  (flet ((%bind-envvar (envvar myvar)
+           (assert (stringp envvar))
+           (assert (symbolp myvar))
+           (let ((tempvar (gensym)))
+             `(let ((,tempvar (uiop:getenv ,envvar)))
+                (when ,tempvar
+                  (setf ,myvar ,tempvar))))))
+    `(block envvars
+       (v:info :utils "Binding envvars:")
+       ,@(loop for (envvar myvar) on var-list by #'cddr
+               collect (%bind-envvar envvar myvar)
+               collect `(v:info :utils "    ~a ~a" ,envvar ,myvar)))))
 
 (export-always 'to-string)
 (-> to-string ((or string symbol)) string)
