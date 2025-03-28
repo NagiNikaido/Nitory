@@ -101,18 +101,23 @@
 (defun nitory/main (opts)
   (setf *startup-timestamp* (current-decoded-timestamp))
   (setf (v:repl-level) (or (@ opts 'loglevel) :info))
+  (setf *main-thread* (bt2:current-thread))
   (let ((log-file (s:path-join *prefix* "log.txt")))
     (v:define-pipe ()
       (v:file-faucet :file log-file)))
   (v:start v:*global-controller*)
   (v:info :main "Hello from Nitory v~a, a multipurpose chatbot based on OneBot v11 & NapCat." +version+)
   (v:info :main "Running on ~a" (uiop:implementation-identifier))
-  (let ((admin (uiop:getenv "NITORY_ADMIN")))
-    (when admin
-      (setf *admin* (parse-integer admin))))
-  (let ((prefix (uiop:getenv "NITORY_SAVE_PREFIX")))
-    (when prefix
-      (setf *prefix* prefix)))
+  (bind-envvar "NITORY_ADMIN" *admin*
+               "NITORY_SAVE_PREFIX" *prefix*
+               "NITORY_ADMIN_EMAIL" *admin-email-address*
+               "NITORY_EMAIL_ADDR" *nitory-email-address*
+               "NITORY_EMAIL_PASS" *nitory-email-password*
+               "NITORY_EMAIL_SERVER" *nitory-email-server*)
+
+  (when (stringp *admin*)
+    (setf *admin* (parse-integer *admin*)))
+  
   (setf *napcat-websocket-client* (make-napcat :url (@ opts 'url)
                                                :address (@ opts 'url)
                                                :port (@ opts 'url)))
@@ -121,6 +126,7 @@
   (on :message *napcat-websocket-client* #'event/receive-command)
   (on :request *napcat-websocket-client* #'event/receive-request)
   (on :meta-event.heartbeat *napcat-websocket-client* (lambda (&rest rest) (db/save-dbs) (values)))
+  (on :meta-event.heartbeat *napcat-websocket-client* #'event/watch-heartbeat)
   (v:info :main "Enable nickname service.")
   (nick/enable-nick)
   (khst/enable-khst)
@@ -152,6 +158,15 @@
             (nitory/main opts))
          :cleanup
            (nitory/cleanup)))
+    (nitory-fatal-error (c)
+      (v:fatal :main "Raised fatal error due to ~a, with following message ~a"
+               (error-type c)
+               (error-message c))
+      (send-email (s:fmt "FATAL ERROR!")
+                  (s:fmt "Fatal error raised! Please restart nitory. Here is the error context.~%Version: ~a~%Time: ~a~%Message: ~a~%"
+                         +version+ (current-decoded-timestamp) (error-message c)))
+      (nitory/cleanup)
+      (adopt:exit))
     (error (c)
       (adopt:print-error-and-exit c))))
 
@@ -241,3 +256,24 @@
 
 (defun event/receive-meta-event (meta-event)
   ())
+
+(define-condition nitory-fatal-error (error)
+  ((error-type :initarg :error-type
+               :initform nil
+               :accessor error-type)
+   (error-message :initarg :error-message
+                  :initform nil
+                  :accessor error-message)))
+
+(define-condition heartbeat-error (nitory-fatal-error)
+  ())
+
+(defun event/watch-heartbeat (json)
+  (let* ((online (@ json "status" "online"))
+         (good (@ json "status" "good")))
+    (unless online
+      (bt2:error-in-thread *main-thread* 'heartbeat-error :error-type :heartbeat-not-online
+             :error-message (encode-to-json-string json)))
+    (unless good
+      (bt2:error-in-thread *main-thread* 'heartbeat-error :error-type :heartbeat-not-good
+             :error-message (encode-to-json-string json)))))

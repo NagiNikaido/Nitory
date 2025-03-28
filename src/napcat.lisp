@@ -62,14 +62,13 @@
             (lambda (message)
               (receive-data napcat-instance message)))
     (wsd:on :error client
-            (lambda (error)
-              (emit ":socket.error" napcat-instance error)))
+            (lambda (serror)
+              (emit ":socket.error" napcat-instance serror)))
     (wsd:on :close client
             (lambda (&key code reason)
               (emit ":socket.close" napcat-instance :code code :reason reason)))
     (unless (dry-run napcat-instance)
-      (handler-case (wsd:start-connection client)
-        (error (e) (emit ":socket.error" napcat-instance e))))))
+      (wsd:start-connection client))))
 
 (export-always 'receive-data)
 (defmethod receive-data ((napcat-instance napcat) data)

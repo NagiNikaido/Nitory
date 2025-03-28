@@ -31,6 +31,7 @@
                "blackbird"
                "bordeaux-threads"
                "cl-ppcre"
+               "cl-smtp"
                "dexador"
                "ironclad"
                "local-time"
@@ -57,6 +58,7 @@
        (:file "command")
        (:file "database")))
      (:file "utils")
+     (:file "email")
      (:file "napcat")
      (:file "help")
      (:file "nick")
