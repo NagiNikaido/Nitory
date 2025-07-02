@@ -41,7 +41,7 @@
                "trivial-package-local-nicknames"
                "trivial-types"
                "verbose"
-	       "websocket-driver"
+               "websocket-driver"
                "yason")
   :components
   ((:static-file "LICENSE")

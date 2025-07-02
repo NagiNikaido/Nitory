@@ -41,42 +41,42 @@
 (nitory:connect *test-client*)
 
 (deftest receive-events
+    (ok (outputs
+         (nitory:receive-data *test-client*
+                              (nitory:encode-to-json-string
+                               '((:post-type . "message")
+                                 (:message-type . "group"))))
+         "message.group"))
   (ok (outputs
-          (nitory:receive-data *test-client*
-                               (nitory:encode-to-json-string
-                                '((:post-type . "message")
-                                  (:message-type . "group"))))
-          "message.group"))
-  (ok (outputs
-          (nitory:receive-data *test-client*
-                               (nitory:encode-to-json-string
-                                '((:post-type . "meta_event")
-                                  (:meta-event-type . "heartbeat"))))
-          "meta-event.heartbeat")))
+       (nitory:receive-data *test-client*
+                            (nitory:encode-to-json-string
+                             '((:post-type . "meta_event")
+                               (:meta-event-type . "heartbeat"))))
+       "meta-event.heartbeat")))
 
 (deftest do-sends
-  (let ((message #(((:type . "text")
-                    (:data . ((:text . "nihao")))))))
-    (ok (typep message 'nitory:message))
-    (let* ((sent (nitory:do-send-group-msg *test-client*
-                   `((:group-id . 123456)
-                     (:message . ,message))
-                   ))
-           (serial (nitory:cur-packet-id *test-client*)))
-      (v:info :out "~a" sent)
-      (nitory:receive-data *test-client*
-                           (nitory:encode-to-json-string
-                            `((:status . "ok")
-                              (:retcode . 0)
-                              (:data . ((:message-id . 123)))
-                              (:echo . ,serial))))
-      (ok (outputs
-              (bb:catcher
-               (bb:attach
-                sent
-                (lambda (json)
-                  (v:info :promise "~a" json)
-                  (format t "message_id=~a" (gethash "message_id" json))))
-               (t (json)
-                  (v:info :promise "~a" json)))        
-           (s:fmt "message_id=123"))))))
+    (let ((message #(((:type . "text")
+                      (:data . ((:text . "nihao")))))))
+      (ok (typep message 'nitory:message))
+      (let* ((sent (nitory:do-send-group-msg *test-client*
+                     `((:group-id . 123456)
+                       (:message . ,message))
+                     ))
+             (serial (nitory:cur-packet-id *test-client*)))
+        (v:info :out "~a" sent)
+        (nitory:receive-data *test-client*
+                             (nitory:encode-to-json-string
+                              `((:status . "ok")
+                                (:retcode . 0)
+                                (:data . ((:message-id . 123)))
+                                (:echo . ,serial))))
+        (ok (outputs
+             (bb:catcher
+              (bb:attach
+               sent
+               (lambda (json)
+                 (v:info :promise "~a" json)
+                 (format t "message_id=~a" (gethash "message_id" json))))
+              (t (json)
+                 (v:info :promise "~a" json)))
+             (s:fmt "message_id=123"))))))

@@ -22,14 +22,14 @@
 
 (defun send-email (subject message)
   (if (and *admin-email-address*
-	   *nitory-email-address*
-	   *nitory-email-server*)
+           *nitory-email-address*
+           *nitory-email-server*)
       (cl-smtp:send-email *nitory-email-server*
-			  *nitory-email-address*
-			  *admin-email-address*
-			  (s:fmt "[Nitory] ~a" subject)
-			  message
-			  :ssl *nitory-email-ssl*
-			  :authentication `(:login ,*nitory-email-address*
-						   ,*nitory-email-password*))
+                          *nitory-email-address*
+                          *admin-email-address*
+                          (s:fmt "[Nitory] ~a" subject)
+                          message
+                          :ssl *nitory-email-ssl*
+                          :authentication `(:login ,*nitory-email-address*
+                                            ,*nitory-email-password*))
       (v:warn :email "Mailing settings are not complete, while SEND-EMAIL method is called.")))

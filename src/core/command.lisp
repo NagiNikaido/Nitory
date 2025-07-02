@@ -119,10 +119,10 @@ the command plus extra options.")
                  (string-not-equal (symbol-name (msg-type command-instance))
                                    (@ json "message_type")))
         (error 'command-parse-error :error-type :wrong-msg-type
-               :error-message (case (msg-type command-instance)
-                                (:group "本指令仅可在群聊中使用")
-                                (:private "本指令仅可在私聊中使用")
-                                (t nil))))
+                                    :error-message (case (msg-type command-instance)
+                                                     (:group "本指令仅可在群聊中使用")
+                                                     (:private "本指令仅可在私聊中使用")
+                                                     (t nil))))
       (loop with remaining = (rest raw-args)
             for opt in (options command-instance)
             if (eql opt :rest)
@@ -137,15 +137,15 @@ the command plus extra options.")
             else
               if (option-optional opt)
                 do (s:push-end nil args)
-              else
-                do (error 'command-parse-error :error-type :wrong-argument
-                          :error-message "格式错误")
-              end
+            else
+              do (error 'command-parse-error :error-type :wrong-argument
+                                             :error-message "格式错误")
+            end
             end
             finally
                (when remaining
                  (error 'command-parse-error :error-type :unparsed-arguments
-                        :error-message "格式错误，参数量过多")))
+                                             :error-message "格式错误，参数量过多")))
       (apply (action command-instance) json (append args kwargs supplemental-args))
       t)))
 
@@ -156,7 +156,8 @@ the command plus extra options.")
 
 (-> command-string-p (string) boolean)
 (defun command-string-p (str)
-  (command-leading-p (char str 0)))
+  (and (> (length str) 0)
+       (command-leading-p (char str 0))))
 
 (defparameter *commands* nil)
 
